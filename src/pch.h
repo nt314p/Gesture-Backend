@@ -1,0 +1,11 @@
+﻿#pragma once
+#include <iostream>
+#include <string>
+#include <Windows.h>
+#include <winrt/Windows.Foundation.h>
+#include <Windows.Devices.Bluetooth.h>
+#include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
+#include <wrl/wrappers/corewrappers.h>
+#include <wrl/event.h>
+#include <collection.h>
+#include <roapi.h>
