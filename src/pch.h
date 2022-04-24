@@ -9,3 +9,4 @@
 #include <wrl/event.h>
 #include <collection.h>
 #include <roapi.h>
+#include <pplawait.h>

@@ -40,7 +40,7 @@ bool TryProcessPacket(UINT8* bytes)
 
 int main(Platform::Array<Platform::String^>^ args)
 {
-	HRESULT hresult = RoInitialize(RO_INIT_SINGLETHREADED);
+	HRESULT hresult = RoInitialize(RO_INIT_MULTITHREADED);
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
@@ -53,7 +53,7 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	std::cout << screenWidth << ", " << screenHeight << std::endl;
 
-	Initialize();
+	StartWatcher();
 
 	std::cin.get();
 
