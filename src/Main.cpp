@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "BluetoothHelper.h"
 
 struct Vector3
 {
@@ -51,6 +52,10 @@ int main(Platform::Array<Platform::String^>^ args)
 	ReleaseDC(NULL, primary);
 
 	std::cout << screenWidth << ", " << screenHeight << std::endl;
+
+	Initialize();
+
+	std::cin.get();
 
 	while (true)
 	{
