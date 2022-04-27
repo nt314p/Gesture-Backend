@@ -1,28 +1,13 @@
 #include "pch.h"
+#include <chrono>
 #include "BluetoothHelper.h"
+#include "Main.h"
 
-constexpr auto BUFFER_LENGTH = 128;
-
-struct Vector3
-{
-	float X;
-	float Y;
-	float Z;
-};
-
-struct Vector3Short
-{
-	INT16 X;
-	INT16 Y;
-	INT16 Z;
-};
-
-struct Packet
-{
-	Vector3Short Gyro;
-	INT8 ScrollData;
-	UINT8 ButtonData;
-};
+constexpr auto Signature = 0b10101000;
+constexpr auto BufferLength = 128;
+constexpr auto PacketAlignmentAttemptsThreshold = 10000;
+constexpr auto SequentialValidPacketsToAlign = 5;
+constexpr auto DegreeRange = 500.0f;
 
 Vector3 ToVector3(Vector3Short v, float range)
 {
@@ -33,22 +18,24 @@ Vector3 ToVector3(Vector3Short v, float range)
 	};
 }
 
-bool TryProcessPacket(UINT8* bytes)
-{
-	Packet packet = *(Packet*)bytes;
+Packet currentPacket = Packet();
 
-	return true;
-}
+uint8_t buffer[BufferLength] = {};
+int readIndex = 0;
+int writeIndex = 0;
 
-uint8_t buffer[BUFFER_LENGTH];
-unsigned int readIndex;
-unsigned int writeIndex;
+uint8_t byteValidCount[sizeof(Packet)] = {}; // byteValidCount[i] stores how many times the ith byte had a valid signature
+int byteIndex = 0;
+bool isDataAligned = false;
+int attemptedPacketAlignments = 0;
+
+auto previousTime = std::chrono::system_clock::now();
 
 void WriteBuffer(uint8_t byte)
 {
 	buffer[writeIndex] = byte;
 	writeIndex++;
-	if (writeIndex >= BUFFER_LENGTH)
+	if (writeIndex >= BufferLength)
 	{
 		writeIndex = 0;
 	}
@@ -58,7 +45,7 @@ uint8_t ReadBuffer()
 {
 	uint8_t byte = buffer[readIndex];
 	readIndex++;
-	if (readIndex >= BUFFER_LENGTH)
+	if (readIndex >= BufferLength)
 	{
 		readIndex = 0;
 	}
@@ -69,8 +56,74 @@ uint8_t ReadBuffer()
 int BufferCount()
 {
 	int difference = writeIndex - readIndex;
-	if (difference < 0) difference += BUFFER_LENGTH;
+	if (difference < 0) difference += BufferLength;
 	return difference;
+}
+
+bool TryProcessPacket()
+{
+	static uint8_t byteBuffer[sizeof(Packet)];
+
+	for (int i = 0; i < sizeof(Packet); i++)
+	{
+		byteBuffer[i] = ReadBuffer();
+	}
+
+	Packet p = *(Packet*)byteBuffer;
+	currentPacket.Gyro = p.Gyro;
+	currentPacket.ScrollData = p.ScrollData;
+	currentPacket.ButtonData = p.ButtonData;
+
+	if ((p.ButtonData & 0b11111000) == Signature) return true;
+
+	isDataAligned = false;
+	attemptedPacketAlignments = 0;
+	std::cout << "Data misaligned!" << std::endl;
+
+	return false;
+}
+
+void OnDataAligned()
+{
+	std::cout << "Data aligned!" << std::endl;
+}
+
+// Attempts to align data currently in the buffer
+bool TryAlignData()
+{
+	if (attemptedPacketAlignments > PacketAlignmentAttemptsThreshold)
+	{
+		std::cout << "Tried to align " << PacketAlignmentAttemptsThreshold << " packets with no success" << std::endl;
+		return false;
+	}
+
+	while (BufferCount() > 0)
+	{
+		if ((ReadBuffer() & 0b11111000) == Signature)
+		{
+			byteValidCount[byteIndex]++;
+			if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
+			{
+				isDataAligned = true;
+				OnDataAligned();
+				return true;
+			}
+		}
+		else
+		{
+			byteValidCount[byteIndex] = 0;
+		}
+
+		byteIndex++;
+
+		if (byteIndex >= sizeof(Packet))
+		{
+			byteIndex = 0;
+			attemptedPacketAlignments++;
+		}
+	}
+
+	return false;
 }
 
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
@@ -80,28 +133,33 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 	{
 		WriteBuffer(reader->ReadByte());
 	}
+
+	if (!isDataAligned)
+	{
+		TryAlignData();
+		return;
+	}
+
+	if (BufferCount() < sizeof(Packet)) return;
+
+	if (!TryProcessPacket()) return;
+
+	Vector3 gyro = ToVector3(currentPacket.Gyro, DegreeRange);
+
+	auto t = std::chrono::system_clock::now();
+	auto us = std::chrono::duration_cast<std::chrono::microseconds>(t - previousTime).count();
+
+	auto elapsed = std::chrono::system_clock::now().time_since_epoch();
+	auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+
+	std::cout << elapsedUs << "\t" << us << std::endl;
+	previousTime = t;
+
+	//std::cout << gyro.X << "\t\t" << gyro.Y << "\t\t" << gyro.Z << std::endl;
 }
 
 int main(Platform::Array<Platform::String^>^ args)
 {
-	WriteBuffer(10);
-	ReadBuffer();
-	WriteBuffer(10);
-	ReadBuffer();
-	WriteBuffer(10);
-	WriteBuffer(10);
-	WriteBuffer(10);
-	WriteBuffer(10);
-
-	std::cout << "Read index: " << readIndex << std::endl;
-	std::cout << "Write index: " << writeIndex << std::endl;
-
-	std::cout << "Buffer length: " << BufferCount() << std::endl;
-	std::cout << (int)ReadBuffer() << std::endl;
-	std::cout << "Buffer length: " << BufferCount() << std::endl;
-
-	return 0;
-
 	HRESULT hresult = RoInitialize(RO_INIT_MULTITHREADED);
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);

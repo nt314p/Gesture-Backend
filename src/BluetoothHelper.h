@@ -1,13 +1,6 @@
 #pragma once
 
-struct BLEDevice
-{
-	uint8_t* dataBuffer;
-	Platform::Guid serviceGuid;
-	Platform::Guid characteristicGuid;
-};
-
-bool StartWatcher();
+void StartWatcher();
 
 concurrency::task<bool> Initialize(Windows::Devices::Bluetooth::BluetoothLEDevice^ bleDevice, 
 	Platform::Guid serviceGuid, Platform::Guid characteristicGuid);

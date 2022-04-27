@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "BluetoothHelper.h"
+#include "Main.h"
 
 using namespace Windows::Devices;
 using namespace Windows::Foundation;
@@ -8,39 +9,44 @@ using namespace Platform;
 auto serviceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
 auto characteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
 
-static void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
+void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
 	Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ eventArgs)
 {
-	printf("Got advertisement. Address: %llx\n", eventArgs->BluetoothAddress);
+	if (watcher->Status == Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Stopped)
+	{
+		return;
+	}
+
+	auto address = eventArgs->BluetoothAddress;
+
+	printf("Got advertisement. Address: %llx\n", address);
 
 	auto serviceUUIDs = eventArgs->Advertisement->ServiceUuids;
 	unsigned int index = -1;
 	if (serviceUUIDs->IndexOf(serviceUUID, &index))
 	{
-		printf("Found device with service. Address: %llx\n", eventArgs->BluetoothAddress);
+		std::cout << "Found device with matching service!" << std::endl;
 
 		watcher->Stop();
-		std::wcout << "Name: " << eventArgs->Advertisement->LocalName->Data() << std::endl;
 
-		auto bleDevice = ConnectToDevice(eventArgs->BluetoothAddress).get();
-		auto result = Initialize(bleDevice, serviceUUID, characteristicUUID).get();
+		auto bleDevice = ConnectToDevice(address).get();
+
+		while (!Initialize(bleDevice, serviceUUID, characteristicUUID).get())
+		{
+			std::cout << "Failed to initialize device, retrying..." << std::endl;
+		}
 	}
 }
 
 void CharacteristicOnValueChanged(Bluetooth::GenericAttributeProfile::GattCharacteristic^ sender,
 	Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ args)
 {
-	std::cout << "Value changed!" << std::endl;
-	std::cout << args->CharacteristicValue->Length << std::endl;
+	ProcessCharacteristicValue(args->CharacteristicValue);
 }
 
 concurrency::task<Bluetooth::BluetoothLEDevice^> ConnectToDevice(unsigned long long address)
 {
-	std::cout << "Connecting..." << std::endl;
-
-	auto bleDevice = co_await Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(address);
-	// implement
-	co_return bleDevice;
+	co_return co_await Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(address);
 }
 
 concurrency::task<bool> Initialize(Bluetooth::BluetoothLEDevice^ bleDevice, Guid serviceGuid, Guid characteristicGuid)
@@ -61,22 +67,36 @@ concurrency::task<bool> Initialize(Bluetooth::BluetoothLEDevice^ bleDevice, Guid
 
 	auto characteristicsResult = co_await customService->GetCharacteristicsForUuidAsync(characteristicGuid, 
 		Bluetooth::BluetoothCacheMode::Uncached);
-	std::cout << "Characteristic status: " << characteristicsResult->Status.ToString()->Data() << std::endl;
 
-	if (characteristicsResult->Status == Bluetooth::GenericAttributeProfile::GattCommunicationStatus::AccessDenied) 
+
+	if (characteristicsResult->Status != Bluetooth::GenericAttributeProfile::GattCommunicationStatus::Success) 
 		co_return false;
+
+	std::cout << "Characteristic status: Success" << std::endl;
 
 	auto customCharacteristic = characteristicsResult->Characteristics->GetAt(0);
 	auto descriptorResult = co_await customCharacteristic->GetDescriptorsAsync(Bluetooth::BluetoothCacheMode::Uncached);
-	std::cout << "Descriptor status: " << descriptorResult->Status.ToString()->Data() << std::endl;
+
+	if (descriptorResult->Status != Bluetooth::GenericAttributeProfile::GattCommunicationStatus::Success)
+		co_return false;
+
+	std::cout << "Descriptor status: Success" << std::endl;
 
 	auto writeConfig = co_await customCharacteristic->WriteClientCharacteristicConfigurationDescriptorWithResultAsync(
 		Bluetooth::GenericAttributeProfile::GattClientCharacteristicConfigurationDescriptorValue::Notify
 	);
-	std::cout << "Write characteristic config status: " << writeConfig->Status.ToString()->Data() << std::endl;
+
+	if (writeConfig->Status != Bluetooth::GenericAttributeProfile::GattCommunicationStatus::Success)
+		co_return false;
+
+	std::cout << "Write characteristic config status: Success" << std::endl;
 
 	auto characteristicConfig = co_await customCharacteristic->ReadClientCharacteristicConfigurationDescriptorAsync();
-	std::cout << "Read characteristic config status: " << characteristicConfig->Status.ToString()->Data() << std::endl;
+
+	if (characteristicConfig->Status != Bluetooth::GenericAttributeProfile::GattCommunicationStatus::Success)
+		co_return false;
+
+	std::cout << "Read characteristic config status: Success " << std::endl;
 
 	if (characteristicConfig->ClientCharacteristicConfigurationDescriptor ==
 		Bluetooth::GenericAttributeProfile::GattClientCharacteristicConfigurationDescriptorValue::Notify)
@@ -97,7 +117,7 @@ concurrency::task<bool> Initialize(Bluetooth::BluetoothLEDevice^ bleDevice, Guid
 }
 
 // Some code from: https://github.com/urish/win-ble-cpp
-bool StartWatcher(/*std::string targetName, std::string serviceGuid, std::string characteristicGuid, int maxRetries*/)
+void StartWatcher()
 {
 	std::cout << "Initializing bluetooth watcher" << std::endl;
 
@@ -116,6 +136,4 @@ bool StartWatcher(/*std::string targetName, std::string serviceGuid, std::string
 	);
 
 	watcher->Start();
-
-	return true;
 }
