@@ -1,6 +1,6 @@
+#include "pch.h"
 #include "BluetoothHelper.h"
 #include "Main.h"
-#include "pch.h"
 
 using namespace Windows::Devices;
 using namespace Windows::Foundation;

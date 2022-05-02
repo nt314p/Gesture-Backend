@@ -9,16 +9,24 @@ struct Vector3
 
 struct Vector3Short
 {
-	INT16 X;
-	INT16 Y;
-	INT16 Z;
+	int16_t X;
+	int16_t Y;
+	int16_t Z;
 };
 
 struct Packet
 {
 	Vector3Short Gyro;
-	INT8 ScrollData;
-	UINT8 ButtonData;
+	int8_t ScrollData;
+	uint8_t ButtonData;
+};
+
+enum MiddleMouseAction
+{
+	None, // Middle mouse is not pressed
+	Undetermined, // Middle mouse has been pressed but we cannot determine an action
+	Scroll,
+	Drag
 };
 
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue);
