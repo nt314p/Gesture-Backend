@@ -9,14 +9,10 @@ constexpr auto PacketAlignmentAttemptsThreshold = 10000;
 constexpr auto SequentialValidPacketsToAlign = 5;
 constexpr auto DegreeRange = 500.0f;
 
-Vector3 ToVector3(Vector3Short v, float range)
-{
-	return {
-		v.X * range / INT16_MAX,
-		v.Y * range / INT16_MAX,
-		v.Z * range / INT16_MAX,
-	};
-}
+INPUT input;
+
+float mouseX = 0;
+float mouseY = 0;
 
 Packet currentPacket = Packet();
 
@@ -36,19 +32,15 @@ void WriteBuffer(uint8_t byte)
 	buffer[writeIndex] = byte;
 	writeIndex++;
 	if (writeIndex >= BufferLength)
-	{
 		writeIndex = 0;
-	}
 }
 
 uint8_t ReadBuffer()
 {
 	uint8_t byte = buffer[readIndex];
 	readIndex++;
-	if (readIndex >= BufferLength)
-	{
+	if (readIndex >= BufferLength) 
 		readIndex = 0;
-	}
 
 	return byte;
 }
@@ -58,6 +50,15 @@ int BufferCount()
 	int difference = writeIndex - readIndex;
 	if (difference < 0) difference += BufferLength;
 	return difference;
+}
+
+Vector3 ToVector3(Vector3Short v, float range)
+{
+	return {
+		v.X * range / INT16_MAX,
+		v.Y * range / INT16_MAX,
+		v.Z * range / INT16_MAX,
+	};
 }
 
 bool TryProcessPacket()
@@ -129,7 +130,7 @@ bool TryAlignData()
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
 {
 	auto reader = Windows::Storage::Streams::DataReader::FromBuffer(characteristicValue);
-	for (unsigned int i = 0; i < characteristicValue->Length; i++)
+	while (reader->UnconsumedBufferLength > 0)
 	{
 		WriteBuffer(reader->ReadByte());
 	}
@@ -158,9 +159,29 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 	//std::cout << gyro.X << "\t\t" << gyro.Y << "\t\t" << gyro.Z << std::endl;
 }
 
+void MouseClick(DWORD flags)
+{
+	input.mi.dx = 0;
+	input.mi.dy = 0;
+	input.mi.dwFlags = flags;
+	input.mi.mouseData = 0;
+
+	UINT numEvents = SendInput(1, &input, sizeof(input));
+	if (numEvents == 0)
+	{
+		std::cout << "SendInput MouseClick failed: " << HRESULT_FROM_WIN32(GetLastError()) << std::endl;
+	}
+}
+
 int main(Platform::Array<Platform::String^>^ args)
 {
 	HRESULT hresult = RoInitialize(RO_INIT_MULTITHREADED);
+
+	if (hresult != S_OK)
+	{
+		if (hresult == S_FALSE) RoUninitialize();
+		return 0;		
+	}
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
@@ -172,6 +193,16 @@ int main(Platform::Array<Platform::String^>^ args)
 	ReleaseDC(NULL, primary);
 
 	std::cout << screenWidth << ", " << screenHeight << std::endl;
+
+	MOUSEINPUT mouseInput;
+	mouseInput.dx = 0;
+	mouseInput.dy = 0;
+	mouseInput.time = 0;
+	mouseInput.mouseData = 0;
+	mouseInput.dwExtraInfo = NULL;
+
+	input.type = INPUT_MOUSE;
+	input.mi = mouseInput;
 
 	StartWatcher();
 
