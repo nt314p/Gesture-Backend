@@ -95,7 +95,7 @@ concurrency::task<bool> Initialize(Bluetooth::BluetoothLEDevice^ bleDevice, Guid
 
 	std::cout << "Read characteristic config status: Success " << std::endl;
 
-	if (characteristicConfig->ClientCharacteristicConfigurationDescriptor == NotifyDescriptorValue) co_return false;
+	if (characteristicConfig->ClientCharacteristicConfigurationDescriptor != NotifyDescriptorValue) co_return false;
 	
 	std::cout << "Characteristic notifications successfully enabled" << std::endl;
 

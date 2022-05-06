@@ -180,24 +180,46 @@ void MouseClick(DWORD flags)
 	SendMouseInput();
 }
 
+void PrintByte(uint8_t byte)
+{
+	// 0b [8 bits] \0
+	char str[2 + 8 + 1];
+	str[0] = '0';
+	str[1] = 'b';
+	str[10] = '\0';
+
+	for (int i = 0; i < 8; i++)
+	{
+		str[9 - i] = byte & 1 << i ? '1' : '0';
+	}
+
+	std::cout << str << std::endl;
+}
+
 // Handles mouse input (click, move, and scroll)
 void ProcessInput(Vector3 gyro)
 {
+	const uint8_t rightMask = 1 << 0;
+	const uint8_t leftMask = 1 << 1;
+	const uint8_t middleMask = 1 << 2;
+
 	uint8_t currentButtonData = currentPacket.ButtonData;
 	uint8_t buttonChanges = currentButtonData ^ previousButtonData;
 
-	if (buttonChanges & 1 << 0)
-		MouseClick(currentButtonData & 1 << 0 ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP);
+	PrintByte(currentButtonData);
 
-	if (buttonChanges & 1 << 1)
+	if (buttonChanges & rightMask)
+		MouseClick(currentButtonData & rightMask ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP);
+
+	if (buttonChanges & middleMask)
 	{
-		bool isMiddlePressed = currentButtonData & 1 << 1;
+		bool isMiddlePressed = currentButtonData & middleMask;
 		MouseClick(isMiddlePressed ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP);
 		middleMouseAction = isMiddlePressed ? MiddleMouseAction::Undetermined : MiddleMouseAction::None;
 	}
 
-	if (buttonChanges & 1 << 2)
-		MouseClick(currentButtonData & 1 << 1 ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP);
+	if (buttonChanges & leftMask)
+		MouseClick(currentButtonData & leftMask ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP);
 
 	previousButtonData = currentButtonData;
 
@@ -261,13 +283,13 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 		return;
 	}
 
-	if (BufferCount() < sizeof(Packet)) return;
+	while (BufferCount() >= sizeof(Packet))
+	{
+		if (!TryProcessPacket()) return;
 
-	if (!TryProcessPacket()) return;
-
-	Vector3 gyro = ToVector3(currentPacket.Gyro, DegreeRange);
-
-	ProcessInput(gyro);
+		Vector3 gyro = ToVector3(currentPacket.Gyro, DegreeRange);
+		ProcessInput(gyro);
+	}
 
 	auto t = std::chrono::system_clock::now();
 	auto us = std::chrono::duration_cast<std::chrono::microseconds>(t - previousTime).count();
@@ -275,7 +297,7 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 	auto elapsed = std::chrono::system_clock::now().time_since_epoch();
 	auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
 
-	std::cout << elapsedUs << "\t" << us << std::endl;
+	//std::cout << elapsedUs << "\t" << us << std::endl;
 	previousTime = t;
 }
 
@@ -287,8 +309,11 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	if (hresult != S_OK)
 	{
-		if (hresult == S_FALSE) RoUninitialize();
-		return 0;
+		std::cout << "Hresult was: " << hresult << std::endl;
+		if (hresult == S_FALSE)
+			RoUninitialize();
+		else
+			return 0;
 	}
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
@@ -314,12 +339,8 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	StartWatcher();
 
-	std::cin.get();
-
 	while (true)
 	{
-		GetCursorPos(&cursor);
-		std::cout << cursor.x << ", " << cursor.y << std::endl;
-		Sleep(10);
+		Sleep(1000);
 	}
 }
