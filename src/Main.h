@@ -14,12 +14,13 @@ struct Vector3Short
 	int16_t Z;
 };
 
+#pragma pack(push, 1)
 struct Packet
 {
 	Vector3Short Gyro;
-	int8_t ScrollData;
 	uint8_t ButtonData;
 };
+#pragma pack(pop)
 
 enum MiddleMouseAction
 {

@@ -79,19 +79,14 @@ Vector3 ToVector3(Vector3Short v, float range)
 
 bool TryProcessPacket()
 {
-	static uint8_t byteBuffer[sizeof(Packet)];
+	uint8_t* byteBuffer = (uint8_t*)&currentPacket;
 
 	for (int i = 0; i < sizeof(Packet); i++)
 	{
 		byteBuffer[i] = ReadBuffer();
 	}
 
-	Packet p = *(Packet*)byteBuffer;
-	currentPacket.Gyro = p.Gyro;
-	currentPacket.ScrollData = p.ScrollData;
-	currentPacket.ButtonData = p.ButtonData;
-
-	if ((p.ButtonData & 0b11111000) == Signature) return true;
+	if ((currentPacket.ButtonData & 0b11111000) == Signature) return true;
 
 	isDataAligned = false;
 	attemptedPacketAlignments = 0;
@@ -206,7 +201,7 @@ void ProcessInput(Vector3 gyro)
 	uint8_t currentButtonData = currentPacket.ButtonData;
 	uint8_t buttonChanges = currentButtonData ^ previousButtonData;
 
-	PrintByte(currentButtonData);
+	//PrintByte(currentButtonData);
 
 	if (buttonChanges & rightMask)
 		MouseClick(currentButtonData & rightMask ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP);
