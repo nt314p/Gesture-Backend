@@ -22,14 +22,7 @@ struct Packet
 };
 #pragma pack(pop)
 
-enum MiddleMouseAction
-{
-	None, // Middle mouse is not pressed
-	Undetermined, // Middle mouse has been pressed but we cannot determine an action
-	Scroll,
-	Drag
-};
-
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue);
-
 bool TryAlignData();
+void OnBluetoothConnected();
+void OnBluetoothDisconnected();
