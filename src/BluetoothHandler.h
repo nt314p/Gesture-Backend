@@ -1,4 +1,7 @@
 #pragma once
 
-void InitializeBLEWatcher();
-void AttemptBluetoothConnection();
+namespace BluetoothHandler
+{
+	void InitializeWatcher();
+	void AttemptConnection();
+}

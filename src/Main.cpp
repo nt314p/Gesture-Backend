@@ -4,11 +4,6 @@
 #include "BluetoothHandler.h"
 #include "Main.h"
 
-constexpr auto Signature = 0b10101000;
-constexpr auto BufferLength = 128;
-constexpr auto PacketAlignmentAttemptsThreshold = 10000;
-constexpr auto SequentialValidPacketsToAlign = 5;
-
 Packet currentPacket;
 
 uint8_t buffer[BufferLength] = {};
@@ -21,6 +16,7 @@ bool isDataAligned = false;
 int attemptedPacketAlignments = 0;
 
 auto previousTime = std::chrono::system_clock::now();
+auto lastReceivedPacketTime = std::chrono::system_clock::now();
 
 void WriteBuffer(uint8_t byte)
 {
@@ -60,14 +56,9 @@ bool TryProcessPacket()
 
 	isDataAligned = false;
 	attemptedPacketAlignments = 0;
-	std::cout << "Data misaligned!" << std::endl;
+	std::cout << "Data misaligned! Attempting to realign..." << std::endl;
 
 	return false;
-}
-
-void OnDataAligned()
-{
-	std::cout << "Data aligned!" << std::endl;
 }
 
 // Attempts to align data currently in the buffer
@@ -87,7 +78,7 @@ bool TryAlignData()
 			if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
 			{
 				isDataAligned = true;
-				OnDataAligned();
+				std::cout << "Data aligned!" << std::endl;
 				return true;
 			}
 		}
@@ -140,8 +131,9 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 
 	while (BufferCount() >= sizeof(Packet))
 	{
+		lastReceivedPacketTime = std::chrono::system_clock::now();
 		if (!TryProcessPacket()) return;
-		ProcessInput(currentPacket);
+		InputHandler::ProcessPacket(currentPacket);
 	}
 
 	auto t = std::chrono::system_clock::now();
@@ -157,11 +149,15 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 void OnBluetoothConnected()
 {
 	std::cout << "Device connected!" << std::endl;
+	lastReceivedPacketTime = std::chrono::system_clock::now();
 }
 
 void OnBluetoothDisconnected()
 {
 	std::cout << "Device disconnected!" << std::endl;
+	std::cout << "Attempting to reconnect..." << std::endl;
+	isDataAligned = false;
+	BluetoothHandler::AttemptConnection();
 }
 
 int main(Platform::Array<Platform::String^>^ args)
@@ -180,12 +176,22 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
-	InitializeInput();
-	InitializeBLEWatcher();
-	AttemptBluetoothConnection();
+	InputHandler::Initialize();
+	BluetoothHandler::InitializeWatcher();
+	BluetoothHandler::AttemptConnection();
+
+	auto currentTime = std::chrono::system_clock::now();
 
 	while (true)
 	{
-		Sleep(1000);
+		using namespace std::chrono;
+		Sleep(100);
+		currentTime = system_clock::now();
+
+		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedPacketTime).count();
+		if (msElapsed > DataTimeoutThresholdMs)
+		{
+			std::cout << "Have not received data for " << msElapsed << " ms..." << std::endl;
+		}
 	}
 }
