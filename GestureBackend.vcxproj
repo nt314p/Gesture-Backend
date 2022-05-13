@@ -200,12 +200,14 @@
     <ClCompile Include="src\InputHandler.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\pch.cpp" />
+    <ClCompile Include="src\TrayHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BluetoothHandler.h" />
     <ClInclude Include="src\InputHandler.h" />
     <ClInclude Include="src\Main.h" />
     <ClInclude Include="src\pch.h" />
+    <ClInclude Include="src\TrayHandler.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
