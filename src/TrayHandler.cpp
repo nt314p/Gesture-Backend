@@ -13,11 +13,17 @@ namespace TrayHandler
 
 		NOTIFYICONDATA nid;
 		nid.cbSize = sizeof(nid);
-		nid.hWnd = GetActiveWindow();
+		nid.hWnd = GetConsoleWindow();
+
+		std::cout << (nid.hWnd == NULL) << std::endl;
+
 		nid.guidItem = guid;
-		nid.uFlags = NIF_ICON | NIF_TIP | NIF_GUID | NIF_SHOWTIP;
+		nid.uID = 100;
+		nid.uFlags = NIF_ICON | NIF_TIP | NIF_SHOWTIP | NIF_MESSAGE;
 
 		wcscpy_s(nid.szTip, L"Hello, world!");
+		wcscpy_s(nid.szInfo, L"You've got mail!");
+
 
 		HRESULT hr = LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_EXCLAMATION), LIM_LARGE, &nid.hIcon);
 

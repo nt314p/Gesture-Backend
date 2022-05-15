@@ -3,6 +3,7 @@
 constexpr auto Signature = 0b10101000;
 constexpr auto BufferLength = 128;
 constexpr auto PacketAlignmentAttemptsThreshold = 10000;
+constexpr auto MaxPacketBacklog = 3U;
 constexpr auto SequentialValidPacketsToAlign = 5;
 constexpr auto DataTimeoutThresholdMs = 400;
 

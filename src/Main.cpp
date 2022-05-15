@@ -14,6 +14,7 @@ int writeIndex = 0;
 uint8_t byteValidCount[sizeof(Packet)] = {}; // byteValidCount[i] stores how many times the ith byte had a valid signature
 int byteIndex = 0;
 bool isDataAligned = false;
+bool isConnected = false;
 int attemptedPacketAlignments = 0;
 
 auto previousTime = std::chrono::system_clock::now();
@@ -31,7 +32,7 @@ uint8_t ReadBuffer()
 {
 	uint8_t byte = buffer[readIndex];
 	readIndex++;
-	if (readIndex >= BufferLength) 
+	if (readIndex >= BufferLength)
 		readIndex = 0;
 
 	return byte;
@@ -130,6 +131,15 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 		return;
 	}
 
+	unsigned int packetBacklog = BufferCount() / sizeof(Packet);
+	if (packetBacklog > MaxPacketBacklog)
+	{
+		for (unsigned int i = 0; i < (packetBacklog - MaxPacketBacklog) * sizeof(Packet); i++)
+		{
+			ReadBuffer();
+		}
+	}
+
 	while (BufferCount() >= sizeof(Packet))
 	{
 		lastReceivedPacketTime = std::chrono::system_clock::now();
@@ -143,7 +153,18 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 	auto elapsed = std::chrono::system_clock::now().time_since_epoch();
 	auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
 
-	//std::cout << elapsedUs << "\t" << us << std::endl;
+	/*
+	int ms = us / 1000;
+
+	std::cout << elapsedUs << "\t";
+
+	for (int i = 0; i < ms; i++)
+	{
+		std::cout << "#";
+	}
+
+	std::cout << std::endl;*/
+
 	previousTime = t;
 }
 
@@ -151,6 +172,7 @@ void OnBluetoothConnected()
 {
 	std::cout << "Device connected!" << std::endl;
 	lastReceivedPacketTime = std::chrono::system_clock::now();
+	isConnected = true;
 }
 
 void OnBluetoothDisconnected()
@@ -158,6 +180,7 @@ void OnBluetoothDisconnected()
 	std::cout << "Device disconnected!" << std::endl;
 	std::cout << "Attempting to reconnect..." << std::endl;
 	isDataAligned = false;
+	isConnected = false;
 	BluetoothHandler::AttemptConnection();
 }
 
@@ -172,18 +195,22 @@ int main(Platform::Array<Platform::String^>^ args)
 		if (hresult == S_FALSE)
 			RoUninitialize();
 		else
+		{
+			std::cout << "RoInitialize failed" << std::endl;
 			return 0;
+		}
 	}
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
 
+	/*
 	TrayHandler::Initialize();
 
 	while (true)
 		Sleep(100);
 
-	return 0;
+	return 0;*/
 
 	InputHandler::Initialize();
 	BluetoothHandler::InitializeWatcher();
@@ -194,13 +221,16 @@ int main(Platform::Array<Platform::String^>^ args)
 	while (true)
 	{
 		using namespace std::chrono;
-		Sleep(100);
+		Sleep(200);
+
+		if (!isConnected) continue;
+
 		currentTime = system_clock::now();
 
 		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedPacketTime).count();
 		if (msElapsed > DataTimeoutThresholdMs)
 		{
-			std::cout << "Have not received data for " << msElapsed << " ms..." << std::endl;
+			std::cout << "Have not received data for " << msElapsed << " ms" << std::endl;
 		}
 	}
 }

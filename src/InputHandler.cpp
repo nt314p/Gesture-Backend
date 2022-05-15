@@ -95,6 +95,8 @@ namespace InputHandler
 		uint8_t currentButtonData = packet.ButtonData;
 		uint8_t buttonChanges = (uint8_t)(currentButtonData ^ previousButtonData);
 
+		//std::cout << gyro.X << "\t" << gyro.Y << "\t" << gyro.Z << std::endl;
+
 		//PrintByte(currentButtonData);
 
 		if (buttonChanges & rightMask)

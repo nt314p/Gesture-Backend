@@ -89,12 +89,15 @@ namespace BluetoothHandler
 		if (sender->ConnectionStatus == Bluetooth::BluetoothConnectionStatus::Disconnected)
 		{
 			OnBluetoothDisconnected();
+			customCharacteristic = nullptr;
+			bleDevice = nullptr;
 		}
 	}
 
 	void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
 		Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ eventArgs)
 	{
+
 		if (watcher->Status == Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Stopped)
 			return;
 
@@ -119,10 +122,10 @@ namespace BluetoothHandler
 			Sleep(100);
 		}
 
-		OnBluetoothConnected();
-
 		bleDevice->ConnectionStatusChanged +=
 			ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(&OnConnectionChanged);
+
+		OnBluetoothConnected();
 	}
 
 	void InitializeWatcher()
