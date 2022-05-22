@@ -1,7 +1,7 @@
 #include "pch.h"
-#include "TrayHandler.h"
+#include "NotificationHandler.h"
 
-namespace TrayHandler
+namespace NotificationHandler
 {
 	constexpr auto uID = 100U;
 	constexpr GUID guid = { 0x53d7aa32, 0x8ac9, 0x4661, {0x92, 0x35, 0xd9, 0x29, 0x87, 0x76, 0xc7, 0x2e} };
@@ -9,7 +9,11 @@ namespace TrayHandler
 	constexpr auto tipMessage = "Hello, world!";
 	const wchar_t ClassName[] = L"Sample Window Class";
 
+	bool autoReconnect = false;
+
 	HMODULE hInstance;
+	HICON balloonIcon;
+	HICON notificationIcon;
 
 	void AddNotificationIcon(HWND hWnd)
 	{
@@ -19,6 +23,9 @@ namespace TrayHandler
 		nid.guidItem = guid;
 		nid.uCallbackMessage = WM_APP_NOTIFYCALLBACK;
 		nid.uFlags = NIF_ICON | NIF_TIP | NIF_SHOWTIP | NIF_MESSAGE | NIF_GUID;
+
+		nid.hIcon = notificationIcon;
+		nid.hBalloonIcon = balloonIcon;
 
 		wcscpy_s(nid.szTip, L"Hello, world!");
 
@@ -49,11 +56,10 @@ namespace TrayHandler
 		nid.cbSize = sizeof(nid);
 		nid.hWnd = hWnd;
 		nid.guidItem = guid;
-
-		HRESULT hr = LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &nid.hBalloonIcon);
-
-		nid.uFlags = NIF_INFO | NIF_GUID | NIF_ICON;
+		nid.uFlags = NIF_INFO | NIF_GUID | NIF_ICON | NIF_REALTIME;
 		nid.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON;
+		nid.hIcon = notificationIcon;
+		nid.hBalloonIcon = balloonIcon;
 		wcscpy_s(nid.szInfo, message);
 		wcscpy_s(nid.szInfoTitle, title);
 
@@ -64,22 +70,52 @@ namespace TrayHandler
 		}
 	}
 
-	void ShowContextMenu(HWND hwnd, POINT pt)
+	void InitializeMenuItemInfo(UINT id, UINT mask, UINT flags, const wchar_t* text, MENUITEMINFO* pMii)
+	{
+		memset(pMii, 0, sizeof(MENUITEMINFO));
+		pMii->cbSize = sizeof(MENUITEMINFO);
+		pMii->fMask = MIIM_ID | mask;
+		pMii->fState = flags;
+		pMii->wID = id;
+		pMii->dwTypeData = (LPWSTR)text;
+	}
+
+	void InsertMenuItemString(HMENU hMenu, UINT id, UINT flags, const wchar_t* text)
+	{
+		MENUITEMINFO mii;
+		InitializeMenuItemInfo(id, MIIM_STATE | MIIM_STRING, flags, text, &mii);
+		InsertMenuItem(hMenu, id, true, &mii);
+	}
+
+	void ModifyMenuItemState(HMENU hMenu, UINT id, UINT flags)
+	{
+		MENUITEMINFO mii;
+		InitializeMenuItemInfo(id, MIIM_STATE, flags, NULL, &mii);
+		SetMenuItemInfo(hMenu, id, true, &mii);
+	}
+
+	void ModifyMenuItemText(HMENU hMenu, UINT id, const wchar_t* text)
+	{
+		MENUITEMINFO mii;
+		InitializeMenuItemInfo(id, MIIM_STRING, 0, text, &mii);
+		SetMenuItemInfo(hMenu, id, true, &mii);
+	}
+
+	void ShowContextMenu(HWND hWnd, POINT pt)
 	{
 		HMENU hMenu = CreatePopupMenu();
 		if (hMenu == NULL) return;
 
-		InsertMenu(hMenu, ContextMenuItem::StatusTitle, MF_BYPOSITION | MF_STRING, NULL, L"Status: Connected");
+		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, L"Status: Connected");
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-		InsertMenu(hMenu, ContextMenuItem::ConnectionActionButton, MF_BYPOSITION | MF_STRING, NULL, L"Disconnect");
-		InsertMenu(hMenu, ContextMenuItem::EditInputSettingsButton, MF_BYPOSITION | MF_STRING, NULL, L"Edit input settings");
-		InsertMenu(hMenu, ContextMenuItem::AutomaticConnectionCheckbox, MF_BYPOSITION | MF_STRING | MF_CHECKED, NULL, L"Auto reconnect");
+		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, L"Disconnect");
+		InsertMenuItemString(hMenu, ContextMenuItem::EditInputSettingsButton, 0, L"Edit input settings");
+		InsertMenuItemString(hMenu, ContextMenuItem::AutomaticConnectionCheckbox, 
+			autoReconnect ? MFS_CHECKED : 0, L"Auto reconnect");
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-		InsertMenu(hMenu, ContextMenuItem::ExitButton, MF_BYPOSITION | MF_STRING, NULL, L"Exit");
+		InsertMenuItemString(hMenu, ContextMenuItem::ExitButton, 0, L"Exit");
 
-		SetMenuDefaultItem(hMenu, ContextMenuItem::StatusTitle, true);
-
-		SetForegroundWindow(hwnd);
+		SetForegroundWindow(hWnd);
 
 		UINT uFlags = TPM_RIGHTBUTTON;
 		if (GetSystemMetrics(SM_MENUDROPALIGNMENT) != 0)
@@ -91,7 +127,7 @@ namespace TrayHandler
 			uFlags |= TPM_LEFTALIGN;
 		}
 
-		TrackPopupMenuEx(hMenu, uFlags, pt.x, pt.y, hwnd, NULL);
+		TrackPopupMenuEx(hMenu, uFlags, pt.x, pt.y, hWnd, NULL);
 	}
 
 	LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -117,6 +153,23 @@ namespace TrayHandler
 			}
 			break;
 		}
+		case WM_COMMAND:
+		{
+			WORD id = LOWORD(wParam);
+			switch (id)
+			{
+			case ContextMenuItem::ExitButton:
+				DeleteNotificationIcon();
+				PostQuitMessage(0);
+				break;
+			case ContextMenuItem::AutomaticConnectionCheckbox:
+				autoReconnect = !autoReconnect;
+				break;
+			}
+			std::cout << "Got command" << std::endl;
+			std::cout << LOWORD(wParam) << std::endl;
+			break;
+		}
 		case WM_DESTROY:
 			DeleteNotificationIcon();
 			PostQuitMessage(0);
@@ -130,7 +183,7 @@ namespace TrayHandler
 
 	void Initialize()
 	{
-		std::cout << "Initializing tray handler..." << std::endl;
+		std::cout << "Initializing notification handler..." << std::endl;
 
 		hInstance = GetModuleHandle(L"");
 
@@ -156,7 +209,11 @@ namespace TrayHandler
 			return;
 		}
 
-		//ShowWindow(hWnd, 0);
+		if (LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &balloonIcon) != S_OK)
+			std::cout << "Failed to load balloon icon" << std::endl;
+
+		if (LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &notificationIcon) != S_OK)
+			std::cout << "Failed to load notification icon" << std::endl;
 
 		MSG msg;
 		while (GetMessage(&msg, hWnd, 0, 0) > 0)

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace TrayHandler
+namespace NotificationHandler
 {
 	namespace ContextMenuItem
 	{

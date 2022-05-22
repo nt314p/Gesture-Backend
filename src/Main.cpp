@@ -1,6 +1,6 @@
 #include "pch.h"
 #include <chrono>
-#include "TrayHandler.h"
+#include "NotificationHandler.h"
 #include "InputHandler.h"
 #include "BluetoothHandler.h"
 #include "Main.h"
@@ -202,10 +202,8 @@ int main(Platform::Array<Platform::String^>^ args)
 	}
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
-
-
 	
-	TrayHandler::Initialize();
+	NotificationHandler::Initialize();
 
 	while (true)
 		Sleep(100);
