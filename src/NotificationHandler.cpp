@@ -46,8 +46,13 @@ namespace NotificationHandler
 		NOTIFYICONDATA nid = { 0 };
 		nid.cbSize = sizeof(nid);
 		nid.guidItem = guid;
+		nid.uFlags = NIF_GUID;
+		
 		if (!Shell_NotifyIcon(NIM_DELETE, &nid))
-			std::cout << "Failed to delete icon" << std::endl;
+		{
+			DWORD error = GetLastError();
+			std::cout << "Failed to delete icon, error: " << error << std::endl;
+		}
 	}
 
 	void ShowBalloon(HWND hWnd, LPCWSTR title, LPCWSTR message)
@@ -65,8 +70,8 @@ namespace NotificationHandler
 
 		if (!Shell_NotifyIcon(NIM_MODIFY, &nid))
 		{
-			DWORD err = GetLastError();
-			std::cout << "Failed to show balloon: " << err << std::endl;
+			DWORD error = GetLastError();
+			std::cout << "Failed to show balloon: " << error << std::endl;
 		}
 	}
 
@@ -110,8 +115,8 @@ namespace NotificationHandler
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, L"Disconnect");
 		InsertMenuItemString(hMenu, ContextMenuItem::EditInputSettingsButton, 0, L"Edit input settings");
-		InsertMenuItemString(hMenu, ContextMenuItem::AutomaticConnectionCheckbox, 
-			autoReconnect ? MFS_CHECKED : 0, L"Auto reconnect");
+		InsertMenuItemString(hMenu, ContextMenuItem::AutomaticConnectionCheckbox,
+			autoReconnect ? (UINT)MFS_CHECKED : 0, L"Auto reconnect");
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 		InsertMenuItemString(hMenu, ContextMenuItem::ExitButton, 0, L"Exit");
 
@@ -199,7 +204,7 @@ namespace NotificationHandler
 			return;
 		}
 
-		HWND hWnd = CreateWindowEx(0, ClassName, L"Test window", WS_OVERLAPPEDWINDOW,
+		HWND hWnd = CreateWindowEx(0, ClassName, L"", WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
 
 		if (hWnd == NULL)
@@ -218,11 +223,8 @@ namespace NotificationHandler
 		MSG msg;
 		while (GetMessage(&msg, hWnd, 0, 0) > 0)
 		{
-			std::cout << "Wheeeee0!" << std::endl;
 			TranslateMessage(&msg);
-			std::cout << "Wheeeee1!" << std::endl;
 			DispatchMessage(&msg);
-			std::cout << "Wheeeee2!" << std::endl;
 		}
 	}
 }

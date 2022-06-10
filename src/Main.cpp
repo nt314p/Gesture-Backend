@@ -101,22 +101,6 @@ bool TryAlignData()
 	return false;
 }
 
-void PrintByte(uint8_t byte)
-{
-	// 0b [8 bits] \0
-	char str[2 + 8 + 1];
-	str[0] = '0';
-	str[1] = 'b';
-	str[10] = '\0';
-
-	for (int i = 0; i < 8; i++)
-	{
-		str[9 - i] = byte & 1 << i ? '1' : '0';
-	}
-
-	std::cout << str << std::endl;
-}
-
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
 {
 	auto reader = Windows::Storage::Streams::DataReader::FromBuffer(characteristicValue);
