@@ -1,13 +1,12 @@
 #include "pch.h"
 #include "NotificationHandler.h"
+#include "BluetoothHandler.h"
 
 namespace NotificationHandler
 {
-	constexpr auto uID = 100U;
 	constexpr GUID guid = { 0x53d7aa32, 0x8ac9, 0x4661, {0x92, 0x35, 0xd9, 0x29, 0x87, 0x76, 0xc7, 0x2e} };
 	constexpr auto WM_APP_NOTIFYCALLBACK = WM_APP + 1U;
-	constexpr auto tipMessage = "Hello, world!";
-	const wchar_t ClassName[] = L"Sample Window Class";
+	const wchar_t ClassName[] = L"WindowClassName";
 
 	bool autoReconnect = false;
 
@@ -55,18 +54,36 @@ namespace NotificationHandler
 		}
 	}
 
+	void SetNotificationIconTooltip(const wchar_t* tooltip)
+	{
+		std::cout << "Setting tooltip: " << tooltip << std::endl;
+		NOTIFYICONDATA nid = { 0 };
+		nid.cbSize = sizeof(nid);
+		nid.guidItem = guid;
+		nid.uFlags = NIF_GUID | NIF_TIP | NIF_SHOWTIP;
+
+		wcscpy_s(nid.szTip, tooltip);
+
+		if (!Shell_NotifyIcon(NIM_MODIFY, &nid))
+		{
+			DWORD error = GetLastError();
+			std::cout << "Failed to set tooltip: " << error << std::endl;
+		}
+	}
+
 	void ShowBalloon(HWND hWnd, LPCWSTR title, LPCWSTR message)
 	{
 		NOTIFYICONDATA nid;
 		nid.cbSize = sizeof(nid);
 		nid.hWnd = hWnd;
 		nid.guidItem = guid;
-		nid.uFlags = NIF_INFO | NIF_GUID | NIF_ICON | NIF_REALTIME;
+		nid.uFlags = NIF_INFO | NIF_GUID | NIF_ICON | NIF_REALTIME | NIF_SHOWTIP;
 		nid.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON;
 		nid.hIcon = notificationIcon;
 		nid.hBalloonIcon = balloonIcon;
 		wcscpy_s(nid.szInfo, message);
 		wcscpy_s(nid.szInfoTitle, title);
+		wcscpy_s(nid.szTip, L"hi");
 
 		if (!Shell_NotifyIcon(NIM_MODIFY, &nid))
 		{
@@ -111,7 +128,9 @@ namespace NotificationHandler
 		HMENU hMenu = CreatePopupMenu();
 		if (hMenu == NULL) return;
 
-		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, L"Status: Connected");
+
+		std::wstring statusStr = std::wstring(L"Status: ") + (BluetoothHandler::IsConnected() ? L"Connected" : L"Disconnected");
+		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, statusStr.c_str());
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, L"Disconnect");
 		InsertMenuItemString(hMenu, ContextMenuItem::EditInputSettingsButton, 0, L"Edit input settings");
@@ -138,6 +157,7 @@ namespace NotificationHandler
 	LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		std::cout << message << std::endl;
+		// SetNotificationIconTooltip(L"inside winproc");
 		switch (message)
 		{
 		case WM_CREATE:
@@ -145,7 +165,6 @@ namespace NotificationHandler
 			break;
 		case WM_APP_NOTIFYCALLBACK:
 		{
-			std::cout << LOWORD(lParam) << std::endl;
 			switch (LOWORD(lParam))
 			{
 			case NIN_SELECT:

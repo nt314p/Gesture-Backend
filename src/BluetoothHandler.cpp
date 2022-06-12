@@ -11,9 +11,16 @@ namespace BluetoothHandler
 	auto serviceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
 	auto characteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
 
+	bool isConnected;
+
 	Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
 	Bluetooth::BluetoothLEDevice^ bleDevice;
 	Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
+
+	bool IsConnected()
+	{
+		return isConnected;
+	}
 
 	void OnCharacteristicValueChanged(Bluetooth::GenericAttributeProfile::GattCharacteristic^ sender,
 		Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ args)
@@ -88,6 +95,7 @@ namespace BluetoothHandler
 	{
 		if (sender->ConnectionStatus == Bluetooth::BluetoothConnectionStatus::Disconnected)
 		{
+			isConnected = false;
 			OnBluetoothDisconnected();
 			customCharacteristic = nullptr;
 			bleDevice = nullptr;
@@ -125,6 +133,7 @@ namespace BluetoothHandler
 		bleDevice->ConnectionStatusChanged +=
 			ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(&OnConnectionChanged);
 
+		isConnected = true;
 		OnBluetoothConnected();
 	}
 

@@ -14,4 +14,5 @@ namespace NotificationHandler
 	}
 
 	void Initialize();
+	void SetNotificationIconTooltip(const wchar_t* tooltip);
 }

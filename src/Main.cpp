@@ -14,8 +14,9 @@ int writeIndex = 0;
 uint8_t byteValidCount[sizeof(Packet)] = {}; // byteValidCount[i] stores how many times the ith byte had a valid signature
 int byteIndex = 0;
 bool isDataAligned = false;
-bool isConnected = false;
 int attemptedPacketAlignments = 0;
+
+bool autoReconnect = false;
 
 auto previousTime = std::chrono::system_clock::now();
 auto lastReceivedPacketTime = std::chrono::system_clock::now();
@@ -156,15 +157,15 @@ void OnBluetoothConnected()
 {
 	std::cout << "Device connected!" << std::endl;
 	lastReceivedPacketTime = std::chrono::system_clock::now();
-	isConnected = true;
 }
 
 void OnBluetoothDisconnected()
 {
 	std::cout << "Device disconnected!" << std::endl;
-	std::cout << "Attempting to reconnect..." << std::endl;
 	isDataAligned = false;
-	isConnected = false;
+
+	if (!autoReconnect) return;
+	std::cout << "Attempting to reconnect..." << std::endl;
 	BluetoothHandler::AttemptConnection();
 }
 
@@ -205,7 +206,7 @@ int main(Platform::Array<Platform::String^>^ args)
 		using namespace std::chrono;
 		Sleep(200);
 
-		if (!isConnected) continue;
+		if (!BluetoothHandler::IsConnected()) continue;
 
 		currentTime = system_clock::now();
 
