@@ -4,11 +4,12 @@
 
 namespace NotificationHandler
 {
-	constexpr GUID guid = { 0x53d7aa32, 0x8ac9, 0x4661, {0x92, 0x35, 0xd9, 0x29, 0x87, 0x76, 0xc7, 0x2e} };
+	constexpr GUID guid = { 0x53d7aa31, 0x8ac9, 0x4661, {0x92, 0x35, 0xd9, 0x29, 0x87, 0x76, 0xc7, 0x2e} };
 	constexpr auto WM_APP_NOTIFYCALLBACK = WM_APP + 1U;
 	const wchar_t ClassName[] = L"WindowClassName";
 
 	bool autoReconnect = false;
+	bool DEBUG_localConnection = false;
 
 	HMODULE hInstance;
 	HICON balloonIcon;
@@ -28,16 +29,15 @@ namespace NotificationHandler
 
 		wcscpy_s(nid.szTip, L"Hello, world!");
 
-		HRESULT hr = LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &nid.hIcon);
-
-		if (hr != S_OK)
+		if (LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &nid.hIcon) != S_OK)
 			std::cout << "Error loading icon!" << std::endl;
 
-		bool result = Shell_NotifyIcon(NIM_ADD, &nid);
-		std::cout << result << std::endl;
+		if(!Shell_NotifyIcon(NIM_ADD, &nid))
+			std::cout << "Failed to add icon!" << std::endl;
 
 		nid.uVersion = NOTIFYICON_VERSION_4;
-		Shell_NotifyIcon(NIM_SETVERSION, &nid);
+		if (!Shell_NotifyIcon(NIM_SETVERSION, &nid))
+			std::cout << "Failed to set icon version!" << std::endl;;
 	}
 
 	void DeleteNotificationIcon()
@@ -48,10 +48,7 @@ namespace NotificationHandler
 		nid.uFlags = NIF_GUID;
 		
 		if (!Shell_NotifyIcon(NIM_DELETE, &nid))
-		{
-			DWORD error = GetLastError();
-			std::cout << "Failed to delete icon, error: " << error << std::endl;
-		}
+			std::cout << "Failed to delete icon!" << std::endl;
 	}
 
 	void SetNotificationIconTooltip(const wchar_t* tooltip)
@@ -65,10 +62,7 @@ namespace NotificationHandler
 		wcscpy_s(nid.szTip, tooltip);
 
 		if (!Shell_NotifyIcon(NIM_MODIFY, &nid))
-		{
-			DWORD error = GetLastError();
-			std::cout << "Failed to set tooltip: " << error << std::endl;
-		}
+			std::cout << "Failed to set tooltip!" << std::endl;
 	}
 
 	void ShowBalloon(HWND hWnd, LPCWSTR title, LPCWSTR message)
@@ -86,10 +80,7 @@ namespace NotificationHandler
 		wcscpy_s(nid.szTip, L"hi");
 
 		if (!Shell_NotifyIcon(NIM_MODIFY, &nid))
-		{
-			DWORD error = GetLastError();
-			std::cout << "Failed to show balloon: " << error << std::endl;
-		}
+			std::cout << "Failed to show balloon!" << std::endl;
 	}
 
 	void InitializeMenuItemInfo(UINT id, UINT mask, UINT flags, const wchar_t* text, MENUITEMINFO* pMii)
@@ -128,11 +119,11 @@ namespace NotificationHandler
 		HMENU hMenu = CreatePopupMenu();
 		if (hMenu == NULL) return;
 
-
 		std::wstring statusStr = std::wstring(L"Status: ") + (BluetoothHandler::IsConnected() ? L"Connected" : L"Disconnected");
 		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, statusStr.c_str());
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, L"Disconnect");
+		const wchar_t* connectionActionStr = DEBUG_localConnection ? L"Connect" : L"Disconnect";
+		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, connectionActionStr);
 		InsertMenuItemString(hMenu, ContextMenuItem::EditInputSettingsButton, 0, L"Edit input settings");
 		InsertMenuItemString(hMenu, ContextMenuItem::AutomaticConnectionCheckbox,
 			autoReconnect ? (UINT)MFS_CHECKED : 0, L"Auto reconnect");
@@ -157,10 +148,11 @@ namespace NotificationHandler
 	LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		std::cout << message << std::endl;
-		// SetNotificationIconTooltip(L"inside winproc");
+
 		switch (message)
 		{
 		case WM_CREATE:
+			std::cout << "Adding notification icon..." << std::endl;
 			AddNotificationIcon(hWnd);
 			break;
 		case WM_APP_NOTIFYCALLBACK:
@@ -189,9 +181,10 @@ namespace NotificationHandler
 			case ContextMenuItem::AutomaticConnectionCheckbox:
 				autoReconnect = !autoReconnect;
 				break;
+			case ContextMenuItem::ConnectionActionButton:
+				DEBUG_localConnection = !DEBUG_localConnection;
+				break;
 			}
-			std::cout << "Got command" << std::endl;
-			std::cout << LOWORD(wParam) << std::endl;
 			break;
 		}
 		case WM_DESTROY:
@@ -219,7 +212,8 @@ namespace NotificationHandler
 		ATOM atom = RegisterClass(&wc);
 		if (!atom)
 		{
-			std::cout << "RegisterClass failed: " << GetLastError() << std::endl;
+			DWORD error = GetLastError();
+			std::cout << "RegisterClass failed: " << error << std::endl;
 			return;
 		}
 
