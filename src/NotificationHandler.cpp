@@ -198,6 +198,8 @@ namespace NotificationHandler
 		return 0;
 	}
 
+	// TODO: make this method non blocking
+	// perhaps return a method to pump?
 	void Initialize()
 	{
 		std::cout << "Initializing notification handler..." << std::endl;

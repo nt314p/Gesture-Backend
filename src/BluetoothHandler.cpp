@@ -10,6 +10,7 @@ namespace BluetoothHandler
 {
 	auto serviceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
 	auto characteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
+	auto blePin = ref new String(L"802048");
 
 	bool isConnected;
 
@@ -41,6 +42,7 @@ namespace BluetoothHandler
 		if (servicesResult->Status != SuccessStatus)
 		{
 			std::cout << "Unable to fetch service" << std::endl;
+			std::cout << (int)servicesResult->Status << std::endl;
 			co_return false;
 		}
 
@@ -91,6 +93,13 @@ namespace BluetoothHandler
 		co_return co_await Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(address);
 	}
 
+	void OnPairingRequested(Windows::Devices::Enumeration::DeviceInformationCustomPairing^ sender,
+		Windows::Devices::Enumeration::DevicePairingRequestedEventArgs^ args)
+	{
+		std::cout << "Received pairing request!";
+		args->Accept(blePin);
+	}
+
 	void OnConnectionChanged(Bluetooth::BluetoothLEDevice^ sender, Platform::Object^ args)
 	{
 		if (sender->ConnectionStatus == Bluetooth::BluetoothConnectionStatus::Disconnected)
@@ -102,10 +111,16 @@ namespace BluetoothHandler
 		}
 	}
 
+	concurrency::task<void> PairToDevice()
+	{
+		using namespace Windows::Devices::Enumeration;
+		co_await bleDevice->DeviceInformation->Pairing->Custom->PairAsync(DevicePairingKinds::ProvidePin);
+		std::cout << "Triggered pairing..." << std::endl;
+	}
+
 	void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
 		Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ eventArgs)
 	{
-
 		if (watcher->Status == Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Stopped)
 			return;
 
@@ -123,6 +138,22 @@ namespace BluetoothHandler
 		watcher->Stop();
 
 		bleDevice = ConnectToDevice(address).get();
+
+		using namespace Windows::Devices::Enumeration;
+
+		bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
+			ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+
+		if (!bleDevice->DeviceInformation->Pairing->IsPaired)
+		{
+			std::cout << "Device is not paired, attempting to pair...";
+			//bleDevice->DeviceInformation->Pairing->Custom->PairAsync(DevicePairingKinds::ProvidePin);
+			PairToDevice().get();
+		}
+
+		std::cout << "Is paired: " << bleDevice->DeviceInformation->Pairing->IsPaired << std::endl;
+		std::cout << "Can pair: " << bleDevice->DeviceInformation->Pairing->CanPair << std::endl;
+		std::cout << "Protection level: " << (int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
 
 		while (!InitializeBLEDevice().get())
 		{

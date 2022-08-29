@@ -104,6 +104,8 @@ bool TryAlignData()
 
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
 {
+	std::cout << "Received packet!" << std::endl;
+
 	auto reader = Windows::Storage::Streams::DataReader::FromBuffer(characteristicValue);
 	while (reader->UnconsumedBufferLength > 0)
 	{
@@ -187,13 +189,13 @@ int main(Platform::Array<Platform::String^>^ args)
 	}
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
-	
-	NotificationHandler::Initialize();
 
-	while (true)
-		Sleep(100);
+	//NotificationHandler::Initialize();
 
-	return 0;
+	//while (true)
+	//	Sleep(100);
+
+	//return 0;
 
 	InputHandler::Initialize();
 	BluetoothHandler::InitializeWatcher();
