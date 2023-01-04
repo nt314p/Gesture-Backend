@@ -19,23 +19,20 @@ int attemptedPacketAlignments = 0;
 bool autoReconnect = false;
 
 auto previousTime = std::chrono::system_clock::now();
-auto lastReceivedPacketTime = std::chrono::system_clock::now();
+auto lastReceivedDataTime = std::chrono::system_clock::now();
 
 void WriteBuffer(uint8_t byte)
 {
 	buffer[writeIndex] = byte;
 	writeIndex++;
-	if (writeIndex >= BufferLength)
-		writeIndex = 0;
+	if (writeIndex >= BufferLength)	writeIndex = 0;
 }
 
 uint8_t ReadBuffer()
 {
 	uint8_t byte = buffer[readIndex];
 	readIndex++;
-	if (readIndex >= BufferLength)
-		readIndex = 0;
-
+	if (readIndex >= BufferLength)	readIndex = 0;
 	return byte;
 }
 
@@ -46,16 +43,21 @@ int BufferCount()
 	return difference;
 }
 
+inline bool HasValidSignature(uint8_t byte)
+{
+	return (byte & 0b11111000) == Signature;
+}
+
 bool TryProcessPacket()
 {
 	uint8_t* byteBuffer = (uint8_t*)&currentPacket;
 
-	for (int i = 0; i < sizeof(Packet); i++)
+	for (int i = 0; i < sizeof(Packet); i++) // read data into packet struct
 	{
 		byteBuffer[i] = ReadBuffer();
 	}
 
-	if ((currentPacket.ButtonData & 0b11111000) == Signature) return true;
+	if (HasValidSignature(currentPacket.ButtonData)) return true;
 
 	isDataAligned = false;
 	attemptedPacketAlignments = 0;
@@ -75,28 +77,24 @@ bool TryAlignData()
 
 	while (BufferCount() > 0)
 	{
-		if ((ReadBuffer() & 0b11111000) == Signature)
-		{
+		if (HasValidSignature(ReadBuffer()))
 			byteValidCount[byteIndex]++;
-			if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
-			{
-				isDataAligned = true;
-				std::cout << "Data aligned!" << std::endl;
-				return true;
-			}
-		}
 		else
-		{
 			byteValidCount[byteIndex] = 0;
+
+		if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
+		{
+			isDataAligned = true;
+			std::cout << "Data aligned!" << std::endl;
+			return true;
 		}
 
 		byteIndex++;
 
-		if (byteIndex >= sizeof(Packet))
-		{
-			byteIndex = 0;
-			attemptedPacketAlignments++;
-		}
+		if (byteIndex < sizeof(Packet)) continue;
+
+		byteIndex = 0;
+		attemptedPacketAlignments++;
 	}
 
 	return false;
@@ -104,7 +102,7 @@ bool TryAlignData()
 
 void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
 {
-	std::cout << "Received packet!" << std::endl;
+	lastReceivedDataTime = std::chrono::system_clock::now();
 
 	auto reader = Windows::Storage::Streams::DataReader::FromBuffer(characteristicValue);
 	while (reader->UnconsumedBufferLength > 0)
@@ -125,11 +123,11 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 		{
 			ReadBuffer();
 		}
+		std::cout << packetBacklog << std::endl;
 	}
 
 	while (BufferCount() >= sizeof(Packet))
 	{
-		lastReceivedPacketTime = std::chrono::system_clock::now();
 		if (!TryProcessPacket()) return;
 		InputHandler::ProcessPacket(currentPacket);
 	}
@@ -158,7 +156,7 @@ void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characterist
 void OnBluetoothConnected()
 {
 	std::cout << "Device connected!" << std::endl;
-	lastReceivedPacketTime = std::chrono::system_clock::now();
+	lastReceivedDataTime = std::chrono::system_clock::now();
 }
 
 void OnBluetoothDisconnected()
@@ -212,10 +210,16 @@ int main(Platform::Array<Platform::String^>^ args)
 
 		currentTime = system_clock::now();
 
-		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedPacketTime).count();
-		if (msElapsed > DataTimeoutThresholdMs)
-		{
-			std::cout << "Have not received data for " << msElapsed << " ms" << std::endl;
-		}
+		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedDataTime).count();
+		if (msElapsed < DataTimeoutThresholdMs) continue;
+
+		std::cout << "Have not received data for " << msElapsed << " ms" << std::endl;
+
+		if (msElapsed < DataTimeoutDisconnectThresholdMs) continue;
+
+		std::cout << "Disconnecting..." << std::endl;
+		BluetoothHandler::Disconnect();
+		Sleep(200);
+		BluetoothHandler::AttemptConnection();
 	}
 }

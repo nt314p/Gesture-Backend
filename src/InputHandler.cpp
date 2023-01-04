@@ -15,7 +15,7 @@ namespace InputHandler
 
 	MiddleMouseAction middleMouseAction = MiddleMouseAction::Undetermined;
 
-	Vector3 ToVector3(Vector3Short v, float range)
+	Vector3 ToVector3(Vector3Int16 v, float range)
 	{
 		return {
 			v.X * range / INT16_MAX,

@@ -12,6 +12,8 @@ namespace BluetoothHandler
 	auto characteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
 	auto blePin = ref new String(L"802048");
 
+	unsigned int bleDeviceInitializationTries = 0;
+
 	bool isConnected;
 
 	Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
@@ -27,6 +29,13 @@ namespace BluetoothHandler
 		Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ args)
 	{
 		ProcessCharacteristicValue(args->CharacteristicValue);
+	}
+
+	void PrintPairingInfo()
+	{
+		std::cout << "Is paired: " << bleDevice->DeviceInformation->Pairing->IsPaired << std::endl;
+		std::cout << "Can pair: " << bleDevice->DeviceInformation->Pairing->CanPair << std::endl;
+		std::cout << "Protection level: " << (int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
 	}
 
 	concurrency::task<bool> InitializeBLEDevice()
@@ -53,7 +62,12 @@ namespace BluetoothHandler
 		auto characteristicsResult = co_await customService->GetCharacteristicsForUuidAsync(characteristicUUID,
 			Bluetooth::BluetoothCacheMode::Uncached);
 
-		if (characteristicsResult->Status != SuccessStatus) co_return false;
+		if (characteristicsResult->Status != SuccessStatus)
+		{
+			std::cout << "Unable to fetch characteristics" << std::endl;
+			std::cout << (int)characteristicsResult->Status << std::endl;
+			co_return false;
+		}
 
 		std::cout << "Characteristic status: Success" << std::endl;
 
@@ -96,7 +110,7 @@ namespace BluetoothHandler
 	void OnPairingRequested(Windows::Devices::Enumeration::DeviceInformationCustomPairing^ sender,
 		Windows::Devices::Enumeration::DevicePairingRequestedEventArgs^ args)
 	{
-		std::cout << "Received pairing request!";
+		std::cout << "Received pairing request!" << std::endl;
 		args->Accept(blePin);
 	}
 
@@ -111,11 +125,39 @@ namespace BluetoothHandler
 		}
 	}
 
-	concurrency::task<void> PairToDevice()
+	concurrency::task<bool> PairToDevice()
+	{
+		std::cout << "Triggered pairing..." << std::endl;
+
+		using namespace Windows::Devices::Enumeration;
+
+		std::cout << "Protection level of device is " << 
+			(int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
+
+		auto pairResult = co_await bleDevice->DeviceInformation->Pairing->Custom->PairAsync(
+			DevicePairingKinds::ProvidePin);
+
+		if (pairResult->Status != DevicePairingResultStatus::Paired)
+		{
+			std::cout << "Pairing unsuccessful!" << std::endl;
+			std::cout << (int)pairResult->Status << std::endl;
+			co_return false;
+		}
+		
+		if (pairResult->ProtectionLevelUsed != DevicePairingProtectionLevel::EncryptionAndAuthentication)
+		{
+			std::cout << "Paired with uncorrect protection level. Likely unable to receive data..." << std::endl;
+		}
+
+		co_return true;
+	}
+	
+	concurrency::task<void> UnpairFromDevice()
 	{
 		using namespace Windows::Devices::Enumeration;
-		co_await bleDevice->DeviceInformation->Pairing->Custom->PairAsync(DevicePairingKinds::ProvidePin);
-		std::cout << "Triggered pairing..." << std::endl;
+		auto unpairingResult = co_await bleDevice->DeviceInformation->Pairing->UnpairAsync();
+		if (unpairingResult->Status == DeviceUnpairingResultStatus::Unpaired)
+			std::cout << "Successfully unpaired" << std::endl;
 	}
 
 	void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
@@ -144,21 +186,40 @@ namespace BluetoothHandler
 		bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
 			ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
 
-		if (!bleDevice->DeviceInformation->Pairing->IsPaired)
+		PrintPairingInfo();
+
+		if (bleDevice->DeviceInformation->Pairing->IsPaired && false)
 		{
-			std::cout << "Device is not paired, attempting to pair...";
-			//bleDevice->DeviceInformation->Pairing->Custom->PairAsync(DevicePairingKinds::ProvidePin);
-			PairToDevice().get();
+			std::cout << "Device is already paired, attempting to unpair..." << std::endl;
+			UnpairFromDevice().get();
+			bleDevice = nullptr;
+			AttemptConnection();
+			return;
 		}
 
-		std::cout << "Is paired: " << bleDevice->DeviceInformation->Pairing->IsPaired << std::endl;
-		std::cout << "Can pair: " << bleDevice->DeviceInformation->Pairing->CanPair << std::endl;
-		std::cout << "Protection level: " << (int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
+		while (!bleDevice->DeviceInformation->Pairing->IsPaired)
+		{
+			std::cout << "Device is not paired, attempting to pair..." << std::endl;
+			if (PairToDevice().get()) break;
+			
+			bleDevice = nullptr;
+			Sleep(3000);
+			bleDevice = ConnectToDevice(address).get();
+			bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
+				ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+		}
+
+		PrintPairingInfo();
 
 		while (!InitializeBLEDevice().get())
 		{
 			std::cout << "Failed to initialize device, retrying..." << std::endl;
-			Sleep(100);
+			bleDevice = nullptr;
+			bleDevice = ConnectToDevice(address).get();
+			bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
+				ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+			bleDeviceInitializationTries++;
+			Sleep(3000);
 		}
 
 		bleDevice->ConnectionStatusChanged +=
@@ -182,5 +243,12 @@ namespace BluetoothHandler
 		bleWatcher->Stop();
 		bleWatcher->Start();
 		std::cout << "Watching for BLE device advertisements..." << std::endl;
+	}
+
+	void Disconnect()
+	{
+		isConnected = false;
+		customCharacteristic = nullptr;
+		bleDevice = nullptr;
 	}
 }

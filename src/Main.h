@@ -2,10 +2,11 @@
 
 constexpr auto Signature = 0b10101000;
 constexpr auto BufferLength = 128;
-constexpr auto PacketAlignmentAttemptsThreshold = 10000;
+constexpr auto PacketAlignmentAttemptsThreshold = 1000;
 constexpr auto MaxPacketBacklog = 3U;
 constexpr auto SequentialValidPacketsToAlign = 5;
-constexpr auto DataTimeoutThresholdMs = 400;
+constexpr auto DataTimeoutThresholdMs = 300;
+constexpr auto DataTimeoutDisconnectThresholdMs = 3000;
 
 struct Vector3
 {
@@ -14,7 +15,7 @@ struct Vector3
 	float Z;
 };
 
-struct Vector3Short
+struct Vector3Int16
 {
 	int16_t X;
 	int16_t Y;
@@ -24,7 +25,7 @@ struct Vector3Short
 #pragma pack(push, 1)
 struct Packet
 {
-	Vector3Short Gyro;
+	Vector3Int16 Gyro;
 	uint8_t ButtonData;
 };
 #pragma pack(pop)
