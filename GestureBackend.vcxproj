@@ -109,6 +109,7 @@
       <CallingConvention>Cdecl</CallingConvention>
       <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <AdditionalIncludeDirectories>C:\Users\Nicolas\Dev\GestureBackend\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -196,18 +197,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\BluetoothHandler.cpp" />
-    <ClCompile Include="src\InputHandler.cpp" />
+    <ClCompile Include="src\Bluetooth.cpp" />
+    <ClCompile Include="src\Input.cpp" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\PacketParser.cpp" />
     <ClCompile Include="src\pch.cpp" />
-    <ClCompile Include="src\NotificationHandler.cpp" />
+    <ClCompile Include="src\Notification.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\BluetoothHandler.h" />
-    <ClInclude Include="src\InputHandler.h" />
+    <ClInclude Include="src\Bluetooth.h" />
+    <ClInclude Include="src\Input.h" />
     <ClInclude Include="src\Main.h" />
+    <ClInclude Include="src\PacketParser.h" />
     <ClInclude Include="src\pch.h" />
-    <ClInclude Include="src\NotificationHandler.h" />
+    <ClInclude Include="src\Notification.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

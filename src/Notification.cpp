@@ -1,19 +1,15 @@
 #include "pch.h"
-#include "NotificationHandler.h"
-#include "BluetoothHandler.h"
+#include "Main.h"
+#include "Notification.h"
+#include "Bluetooth.h"
 
-namespace NotificationHandler
+namespace Notification
 {
-	constexpr GUID guid = { 0x53d7aa31, 0x8ac9, 0x4661, {0x92, 0x35, 0xd9, 0x29, 0x87, 0x76, 0xc7, 0x2e} };
-	constexpr auto WM_APP_NOTIFYCALLBACK = WM_APP + 1U;
-	const wchar_t ClassName[] = L"WindowClassName";
-
-	bool autoReconnect = false;
+	static bool autoReconnect = false;
 	bool DEBUG_localConnection = false;
 
-	HMODULE hInstance;
-	HICON balloonIcon;
-	HICON notificationIcon;
+	static HICON balloonIcon;
+	static HICON notificationIcon;
 
 	void AddNotificationIcon(HWND hWnd)
 	{
@@ -67,7 +63,7 @@ namespace NotificationHandler
 
 	void ShowBalloon(HWND hWnd, LPCWSTR title, LPCWSTR message)
 	{
-		NOTIFYICONDATA nid;
+		NOTIFYICONDATA nid{};
 		nid.cbSize = sizeof(nid);
 		nid.hWnd = hWnd;
 		nid.guidItem = guid;
@@ -119,7 +115,7 @@ namespace NotificationHandler
 		HMENU hMenu = CreatePopupMenu();
 		if (hMenu == NULL) return;
 
-		std::wstring statusStr = std::wstring(L"Status: ") + (BluetoothHandler::IsConnected() ? L"Connected" : L"Disconnected");
+		std::wstring statusStr = std::wstring(L"Status: ") + (BluetoothLE::IsConnected() ? L"Connected" : L"Disconnected");
 		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, statusStr.c_str());
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 		const wchar_t* connectionActionStr = DEBUG_localConnection ? L"Connect" : L"Disconnect";
@@ -143,103 +139,5 @@ namespace NotificationHandler
 		}
 
 		TrackPopupMenuEx(hMenu, uFlags, pt.x, pt.y, hWnd, NULL);
-	}
-
-	LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		std::cout << message << std::endl;
-
-		switch (message)
-		{
-		case WM_CREATE:
-			std::cout << "Adding notification icon..." << std::endl;
-			AddNotificationIcon(hWnd);
-			break;
-		case WM_APP_NOTIFYCALLBACK:
-		{
-			switch (LOWORD(lParam))
-			{
-			case NIN_SELECT:
-				ShowBalloon(hWnd, L"Remote connected!", L"Remote was connected");
-				break;
-			case WM_CONTEXTMENU:
-				POINT p = { LOWORD(wParam), HIWORD(wParam) };
-				ShowContextMenu(hWnd, p);
-				break;
-			}
-			break;
-		}
-		case WM_COMMAND:
-		{
-			WORD id = LOWORD(wParam);
-			switch (id)
-			{
-			case ContextMenuItem::ExitButton:
-				DeleteNotificationIcon();
-				PostQuitMessage(0);
-				break;
-			case ContextMenuItem::AutomaticConnectionCheckbox:
-				autoReconnect = !autoReconnect;
-				break;
-			case ContextMenuItem::ConnectionActionButton:
-				DEBUG_localConnection = !DEBUG_localConnection;
-				break;
-			}
-			break;
-		}
-		case WM_DESTROY:
-			DeleteNotificationIcon();
-			PostQuitMessage(0);
-			break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
-		}
-
-		return 0;
-	}
-
-	// TODO: make this method non blocking
-	// perhaps return a method to pump?
-	void Initialize()
-	{
-		std::cout << "Initializing notification handler..." << std::endl;
-
-		hInstance = GetModuleHandle(L"");
-
-		WNDCLASS wc = { 0 };
-		wc.lpfnWndProc = WindowProc;
-		wc.hInstance = hInstance;
-		wc.lpszClassName = ClassName;
-
-		ATOM atom = RegisterClass(&wc);
-		if (!atom)
-		{
-			DWORD error = GetLastError();
-			std::cout << "RegisterClass failed: " << error << std::endl;
-			return;
-		}
-
-		HWND hWnd = CreateWindowEx(0, ClassName, L"", WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
-
-		if (hWnd == NULL)
-		{
-			DWORD error = GetLastError();
-			std::cout << "CreateWindowEx failed: " << error << std::endl;
-			return;
-		}
-
-		if (LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &balloonIcon) != S_OK)
-			std::cout << "Failed to load balloon icon" << std::endl;
-
-		if (LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &notificationIcon) != S_OK)
-			std::cout << "Failed to load notification icon" << std::endl;
-
-		MSG msg;
-		while (GetMessage(&msg, hWnd, 0, 0) > 0)
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
 	}
 }

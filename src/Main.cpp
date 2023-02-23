@@ -1,172 +1,129 @@
 #include "pch.h"
 #include <chrono>
-#include "NotificationHandler.h"
-#include "InputHandler.h"
-#include "BluetoothHandler.h"
+#include "Notification.h"
+#include "Input.h"
+#include "Bluetooth.h"
+#include "PacketParser.h"
 #include "Main.h"
 
-Packet currentPacket;
-
-uint8_t buffer[BufferLength] = {};
-int readIndex = 0;
-int writeIndex = 0;
-
-uint8_t byteValidCount[sizeof(Packet)] = {}; // byteValidCount[i] stores how many times the ith byte had a valid signature
-int byteIndex = 0;
-bool isDataAligned = false;
-int attemptedPacketAlignments = 0;
+static const wchar_t ClassName[] = L"WindowClassName";
 
 bool autoReconnect = false;
-
-auto previousTime = std::chrono::system_clock::now();
-auto lastReceivedDataTime = std::chrono::system_clock::now();
-
-void WriteBuffer(uint8_t byte)
-{
-	buffer[writeIndex] = byte;
-	writeIndex++;
-	if (writeIndex >= BufferLength)	writeIndex = 0;
-}
-
-uint8_t ReadBuffer()
-{
-	uint8_t byte = buffer[readIndex];
-	readIndex++;
-	if (readIndex >= BufferLength)	readIndex = 0;
-	return byte;
-}
-
-int BufferCount()
-{
-	int difference = writeIndex - readIndex;
-	if (difference < 0) difference += BufferLength;
-	return difference;
-}
-
-inline bool HasValidSignature(uint8_t byte)
-{
-	return (byte & 0b11111000) == Signature;
-}
-
-bool TryProcessPacket()
-{
-	uint8_t* byteBuffer = (uint8_t*)&currentPacket;
-
-	for (int i = 0; i < sizeof(Packet); i++) // read data into packet struct
-	{
-		byteBuffer[i] = ReadBuffer();
-	}
-
-	if (HasValidSignature(currentPacket.ButtonData)) return true;
-
-	isDataAligned = false;
-	attemptedPacketAlignments = 0;
-	std::cout << "Data misaligned! Attempting to realign..." << std::endl;
-
-	return false;
-}
-
-// Attempts to align data currently in the buffer
-bool TryAlignData()
-{
-	if (attemptedPacketAlignments > PacketAlignmentAttemptsThreshold)
-	{
-		std::cout << "Tried to align " << PacketAlignmentAttemptsThreshold << " packets with no success" << std::endl;
-		return false;
-	}
-
-	while (BufferCount() > 0)
-	{
-		if (HasValidSignature(ReadBuffer()))
-			byteValidCount[byteIndex]++;
-		else
-			byteValidCount[byteIndex] = 0;
-
-		if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
-		{
-			isDataAligned = true;
-			std::cout << "Data aligned!" << std::endl;
-			return true;
-		}
-
-		byteIndex++;
-
-		if (byteIndex < sizeof(Packet)) continue;
-
-		byteIndex = 0;
-		attemptedPacketAlignments++;
-	}
-
-	return false;
-}
-
-void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
-{
-	lastReceivedDataTime = std::chrono::system_clock::now();
-
-	auto reader = Windows::Storage::Streams::DataReader::FromBuffer(characteristicValue);
-	while (reader->UnconsumedBufferLength > 0)
-	{
-		WriteBuffer(reader->ReadByte());
-	}
-
-	if (!isDataAligned)
-	{
-		TryAlignData();
-		return;
-	}
-
-	unsigned int packetBacklog = BufferCount() / sizeof(Packet);
-	if (packetBacklog > MaxPacketBacklog)
-	{
-		for (unsigned int i = 0; i < (packetBacklog - MaxPacketBacklog) * sizeof(Packet); i++)
-		{
-			ReadBuffer();
-		}
-		std::cout << packetBacklog << std::endl;
-	}
-
-	while (BufferCount() >= sizeof(Packet))
-	{
-		if (!TryProcessPacket()) return;
-		InputHandler::ProcessPacket(currentPacket);
-	}
-
-	auto t = std::chrono::system_clock::now();
-	auto us = std::chrono::duration_cast<std::chrono::microseconds>(t - previousTime).count();
-
-	auto elapsed = std::chrono::system_clock::now().time_since_epoch();
-	auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-
-	/*
-	int ms = us / 1000;
-
-	std::cout << elapsedUs << "\t";
-
-	for (int i = 0; i < ms; i++)
-	{
-		std::cout << "#";
-	}
-
-	std::cout << std::endl;*/
-
-	previousTime = t;
-}
+HMODULE hInstance;
 
 void OnBluetoothConnected()
 {
 	std::cout << "Device connected!" << std::endl;
-	lastReceivedDataTime = std::chrono::system_clock::now();
+	PacketParser::ResetLastReceivedDataTime();
 }
 
 void OnBluetoothDisconnected()
 {
 	std::cout << "Device disconnected!" << std::endl;
-	isDataAligned = false;
+	PacketParser::ResetDataAlignment();
+	PacketParser::ResetLastReceivedDataTime();
 
 	if (!autoReconnect) return;
 	std::cout << "Attempting to reconnect..." << std::endl;
-	BluetoothHandler::AttemptConnection();
+	BluetoothLE::AttemptConnection();
+}
+
+LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	std::cout << message << std::endl;
+
+	switch (message)
+	{
+	case WM_CREATE:
+		std::cout << "Adding notification icon..." << std::endl;
+		Notification::AddNotificationIcon(hWnd);
+		break;
+	case WM_APP_NOTIFYCALLBACK:
+	{
+		switch (LOWORD(lParam))
+		{
+		case NIN_SELECT:
+			Notification::ShowBalloon(hWnd, L"Remote connected!", L"Remote was connected");
+			break;
+		case WM_CONTEXTMENU:
+			POINT p = { LOWORD(wParam), HIWORD(wParam) };
+			Notification::ShowContextMenu(hWnd, p);
+			break;
+		}
+		break;
+	}
+	case WM_COMMAND:
+	{
+		WORD id = LOWORD(wParam);
+		switch (id)
+		{
+		case Notification::ContextMenuItem::ExitButton:
+			Notification::DeleteNotificationIcon();
+			PostQuitMessage(0);
+			break;
+		case Notification::ContextMenuItem::AutomaticConnectionCheckbox:
+			autoReconnect = !autoReconnect;
+			break;
+		case Notification::ContextMenuItem::ConnectionActionButton:
+			Notification::DEBUG_localConnection = !Notification::DEBUG_localConnection;
+			break;
+		}
+		break;
+	}
+	case WM_DESTROY:
+		DeleteNotificationIcon();
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+
+	return 0;
+}
+
+// TODO: make this method non blocking
+// perhaps return a method to pump?
+void Initialize()
+{
+	std::cout << "Initializing notification handler..." << std::endl;
+
+	hInstance = GetModuleHandle(L"");
+
+	WNDCLASS wc = { 0 };
+	wc.lpfnWndProc = WindowProc;
+	wc.hInstance = hInstance;
+	wc.lpszClassName = ClassName;
+
+	ATOM atom = RegisterClass(&wc);
+	if (!atom)
+	{
+		DWORD error = GetLastError();
+		std::cout << "RegisterClass failed: " << error << std::endl;
+		return;
+	}
+
+	HWND hWnd = CreateWindowEx(0, ClassName, L"", WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
+
+	if (hWnd == NULL)
+	{
+		DWORD error = GetLastError();
+		std::cout << "CreateWindowEx failed: " << error << std::endl;
+		return;
+	}
+
+	if (LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &balloonIcon) != S_OK)
+		std::cout << "Failed to load balloon icon" << std::endl;
+
+	if (LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &notificationIcon) != S_OK)
+		std::cout << "Failed to load notification icon" << std::endl;
+
+	MSG msg;
+	while (GetMessage(&msg, hWnd, 0, 0) > 0)
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 }
 
 int main(Platform::Array<Platform::String^>^ args)
@@ -188,38 +145,25 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
-	//NotificationHandler::Initialize();
+	//Notification::Initialize();
 
-	//while (true)
-	//	Sleep(100);
-
-	//return 0;
-
-	InputHandler::Initialize();
-	BluetoothHandler::InitializeWatcher();
-	BluetoothHandler::AttemptConnection();
-
-	auto currentTime = std::chrono::system_clock::now();
+	Input::Initialize();
+	BluetoothLE::InitializeWatcher();
+	BluetoothLE::AttemptConnection();
 
 	while (true)
 	{
-		using namespace std::chrono;
+
 		Sleep(200);
+		if (!BluetoothLE::IsConnected()) continue;
 
-		if (!BluetoothHandler::IsConnected()) continue;
-
-		currentTime = system_clock::now();
-
-		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedDataTime).count();
-		if (msElapsed < DataTimeoutThresholdMs) continue;
-
-		std::cout << "Have not received data for " << msElapsed << " ms" << std::endl;
-
-		if (msElapsed < DataTimeoutDisconnectThresholdMs) continue;
-
-		std::cout << "Disconnecting..." << std::endl;
-		BluetoothHandler::Disconnect();
-		Sleep(200);
-		BluetoothHandler::AttemptConnection();
+		if (PacketParser::DataTimeoutExceeded())
+		{
+			std::cout << "Disconnecting..." << std::endl;
+			Notification::ShowBalloon(L"Remote disconnected!", L"Remote was disconnected");
+			BluetoothLE::Disconnect();
+			Sleep(500);
+			BluetoothLE::AttemptConnection();
+		}
 	}
 }

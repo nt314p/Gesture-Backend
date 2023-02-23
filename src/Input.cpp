@@ -1,19 +1,19 @@
 #include "pch.h"
-#include "InputHandler.h"
+#include "Input.h"
 
-namespace InputHandler
+namespace Input
 {
-	INPUT input;
-	POINT cursor;
+	static INPUT input;
+	static POINT cursor;
 
-	int screenWidth;
-	int screenHeight;
+	static int screenWidth;
+	static int screenHeight;
 
-	float mouseX = 0;
-	float mouseY = 0;
-	uint8_t previousButtonData;
+	static float mouseX = 0;
+	static float mouseY = 0;
+	static uint8_t previousButtonData;
 
-	MiddleMouseAction middleMouseAction = MiddleMouseAction::Undetermined;
+	static MiddleMouseAction middleMouseAction = MiddleMouseAction::Undetermined;
 
 	Vector3 ToVector3(Vector3Int16 v, float range)
 	{
@@ -35,7 +35,7 @@ namespace InputHandler
 		screenHeight = GetDeviceCaps(primary, VERTRES) - 1;
 		ReleaseDC(NULL, primary);
 
-		MOUSEINPUT mouseInput;
+		MOUSEINPUT mouseInput{};
 		mouseInput.dx = 0;
 		mouseInput.dy = 0;
 		mouseInput.time = 0;
@@ -69,7 +69,7 @@ namespace InputHandler
 	{
 		input.mi.dx = (int)round(mouseX * 0xffff / (float)screenWidth);
 		input.mi.dy = (int)round(mouseY * 0xffff / (float)screenHeight);
-		input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+		input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE_NOCOALESCE;
 		input.mi.mouseData = 0;
 		SendMouseInput();
 	}
@@ -86,13 +86,13 @@ namespace InputHandler
 	// Handles mouse input (click, move, and scroll)
 	void ProcessPacket(Packet packet)
 	{
-		Vector3 gyro = ToVector3(packet.Gyro, DegreeRange);
+		auto gyro = ToVector3(packet.Gyro, DegreeRange);
 
 		const uint8_t rightMask = 1 << 0;
 		const uint8_t leftMask = 1 << 1;
 		const uint8_t middleMask = 1 << 2;
 
-		uint8_t currentButtonData = packet.ButtonData;
+		auto currentButtonData = packet.ButtonData;
 		uint8_t buttonChanges = (uint8_t)(currentButtonData ^ previousButtonData);
 
 		//std::cout << gyro.X << "\t" << gyro.Y << "\t" << gyro.Z << std::endl;

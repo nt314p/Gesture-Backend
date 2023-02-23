@@ -1,12 +1,7 @@
 #pragma once
 
-constexpr auto Signature = 0b10101000;
-constexpr auto BufferLength = 128;
-constexpr auto PacketAlignmentAttemptsThreshold = 1000;
-constexpr auto MaxPacketBacklog = 3U;
-constexpr auto SequentialValidPacketsToAlign = 5;
-constexpr auto DataTimeoutThresholdMs = 300;
-constexpr auto DataTimeoutDisconnectThresholdMs = 3000;
+constexpr auto WM_APP_NOTIFYCALLBACK = WM_APP + 1U;
+constexpr GUID guid = { 0x53d7aa31, 0x8ac9, 0x4661, {0x92, 0x35, 0xd9, 0x29, 0x87, 0x76, 0xc7, 0x2e} };
 
 struct Vector3
 {
@@ -30,7 +25,5 @@ struct Packet
 };
 #pragma pack(pop)
 
-void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue);
-bool TryAlignData();
 void OnBluetoothConnected();
 void OnBluetoothDisconnected();

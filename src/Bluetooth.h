@@ -1,6 +1,6 @@
 #pragma once
 
-namespace BluetoothHandler
+namespace BluetoothLE
 {
 	constexpr auto BluetoothScanningTimeoutMins = 5; // TODO: implement timeout
 

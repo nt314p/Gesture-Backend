@@ -1,6 +1,6 @@
 #pragma once
 
-namespace NotificationHandler
+namespace Notification
 {
 	namespace ContextMenuItem
 	{
@@ -13,6 +13,9 @@ namespace NotificationHandler
 		constexpr UINT ExitButton = 6;
 	}
 
-	void Initialize();
+	void AddNotificationIcon(HWND hWnd);
+	void DeleteNotificationIcon();
+	void ShowBalloon(HWND hWnd, LPCWSTR title, LPCWSTR message);
+	void ShowContextMenu(HWND hWnd, POINT pt);
 	void SetNotificationIconTooltip(const wchar_t* tooltip);
 }

@@ -1,24 +1,27 @@
 #include "pch.h"
-#include "BluetoothHandler.h"
+#include "Bluetooth.h"
+#include "PacketParser.h"
 #include "Main.h"
+#include <functional>
+#include <ppltasks.h>
 
 using namespace Windows::Devices;
 using namespace Windows::Foundation;
 using namespace Platform;
 
-namespace BluetoothHandler
+namespace BluetoothLE
 {
-	auto serviceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
-	auto characteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
-	auto blePin = ref new String(L"802048");
+	static const auto ServiceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
+	static const auto CharacteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
+	static const auto BLEPin = ref new String(L"802048");
 
-	unsigned int bleDeviceInitializationTries = 0;
+	static unsigned int bleDeviceInitializationTries = 0;
 
-	bool isConnected;
+	static bool isConnected;
 
-	Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
-	Bluetooth::BluetoothLEDevice^ bleDevice;
-	Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
+	static Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
+	static Bluetooth::BluetoothLEDevice^ bleDevice;
+	static Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
 
 	bool IsConnected()
 	{
@@ -28,7 +31,8 @@ namespace BluetoothHandler
 	void OnCharacteristicValueChanged(Bluetooth::GenericAttributeProfile::GattCharacteristic^ sender,
 		Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ args)
 	{
-		ProcessCharacteristicValue(args->CharacteristicValue);
+		// std::cout << "Characteristic value changed!" << std::endl;
+		PacketParser::ProcessCharacteristicValue(args->CharacteristicValue);
 	}
 
 	void PrintPairingInfo()
@@ -38,15 +42,59 @@ namespace BluetoothHandler
 		std::cout << "Protection level: " << (int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
 	}
 
+	concurrency::task<Bluetooth::GenericAttributeProfile::GattDeviceServicesResult^> FetchServices()
+	{
+		Bluetooth::GenericAttributeProfile::GattDeviceServicesResult^ servicesResult = nullptr;
+		try
+		{
+			auto x = bleDevice->GetGattServicesForUuidAsync(ServiceUUID, Bluetooth::BluetoothCacheMode::Uncached);
+			return co_await x;
+		}
+		catch (...)
+		{
+			std::cout << "Exception!" << std::endl;
+			co_return nullptr;
+		}
+	}
+
 	concurrency::task<bool> InitializeBLEDevice()
 	{
-		const auto SuccessStatus = Bluetooth::GenericAttributeProfile::GattCommunicationStatus::Success;
-		const auto NotifyDescriptorValue =
-			Bluetooth::GenericAttributeProfile::GattClientCharacteristicConfigurationDescriptorValue::Notify;
+		using namespace Bluetooth::GenericAttributeProfile;
+		const auto SuccessStatus = GattCommunicationStatus::Success;
+		const auto NotifyDescriptorValue = GattClientCharacteristicConfigurationDescriptorValue::Notify;
 
 		std::cout << "Initializing device..." << std::endl;
 
-		auto servicesResult = co_await bleDevice->GetGattServicesForUuidAsync(serviceUUID, Bluetooth::BluetoothCacheMode::Uncached);
+		/*
+		std::cout << (bleDevice == nullptr) << std::endl;
+
+		Sleep(1000);
+
+		auto getServicesTask =
+			concurrency::create_task(
+				bleDevice->GetGattServicesForUuidAsync(serviceUUID, Bluetooth::BluetoothCacheMode::Uncached));
+
+		GattDeviceServicesResult^ servicesResult = nullptr;
+
+		getServicesTask.then([](GattDeviceServicesResult^ result)
+			{
+				std::cout << (int)result->Status << std::endl;
+			})
+			.then([](concurrency::task<void> t)
+				{
+					try
+					{
+						t.get();
+						std::cout << "Success I think" << std::endl;
+					}
+					catch (...)
+					{
+						std::cout << "Exception!" << std::endl;
+					}
+				});*/
+
+		auto servicesResult =
+			co_await bleDevice->GetGattServicesForUuidAsync(ServiceUUID, Bluetooth::BluetoothCacheMode::Uncached);
 
 		if (servicesResult->Status != SuccessStatus)
 		{
@@ -59,7 +107,7 @@ namespace BluetoothHandler
 
 		auto customService = servicesResult->Services->GetAt(0);
 
-		auto characteristicsResult = co_await customService->GetCharacteristicsForUuidAsync(characteristicUUID,
+		auto characteristicsResult = co_await customService->GetCharacteristicsForUuidAsync(CharacteristicUUID,
 			Bluetooth::BluetoothCacheMode::Uncached);
 
 		if (characteristicsResult->Status != SuccessStatus)
@@ -72,32 +120,37 @@ namespace BluetoothHandler
 		std::cout << "Characteristic status: Success" << std::endl;
 
 		customCharacteristic = characteristicsResult->Characteristics->GetAt(0);
-		auto descriptorResult = co_await customCharacteristic->GetDescriptorsAsync(Bluetooth::BluetoothCacheMode::Uncached);
+		auto descriptorResult =
+			co_await customCharacteristic->GetDescriptorsAsync(Bluetooth::BluetoothCacheMode::Uncached);
 
 		if (descriptorResult->Status != SuccessStatus) co_return false;
 
 		std::cout << "Descriptor status: Success" << std::endl;
 
-		auto writeConfig = co_await customCharacteristic->WriteClientCharacteristicConfigurationDescriptorWithResultAsync(
-			NotifyDescriptorValue
-		);
+		auto writeConfig =
+			co_await customCharacteristic->WriteClientCharacteristicConfigurationDescriptorWithResultAsync(
+				NotifyDescriptorValue
+			);
 
 		if (writeConfig->Status != SuccessStatus) co_return false;
 
 		std::cout << "Write characteristic config status: Success" << std::endl;
 
-		auto characteristicConfig = co_await customCharacteristic->ReadClientCharacteristicConfigurationDescriptorAsync();
+		auto characteristicConfig =
+			co_await customCharacteristic->ReadClientCharacteristicConfigurationDescriptorAsync();
 
 		if (characteristicConfig->Status != SuccessStatus) co_return false;
 
 		std::cout << "Read characteristic config status: Success " << std::endl;
 
-		if (characteristicConfig->ClientCharacteristicConfigurationDescriptor != NotifyDescriptorValue) co_return false;
+		if (characteristicConfig->ClientCharacteristicConfigurationDescriptor != NotifyDescriptorValue)
+			co_return false;
 
 		std::cout << "Characteristic notifications successfully enabled" << std::endl;
 
-		customCharacteristic->ValueChanged += ref new TypedEventHandler<Bluetooth::GenericAttributeProfile::GattCharacteristic^,
-			Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^>(&OnCharacteristicValueChanged);
+		using namespace Bluetooth::GenericAttributeProfile;
+		customCharacteristic->ValueChanged +=
+			ref new TypedEventHandler<GattCharacteristic^, GattValueChangedEventArgs^>(&OnCharacteristicValueChanged);
 
 		co_return true;
 	}
@@ -111,7 +164,7 @@ namespace BluetoothHandler
 		Windows::Devices::Enumeration::DevicePairingRequestedEventArgs^ args)
 	{
 		std::cout << "Received pairing request!" << std::endl;
-		args->Accept(blePin);
+		args->Accept(BLEPin);
 	}
 
 	void OnConnectionChanged(Bluetooth::BluetoothLEDevice^ sender, Platform::Object^ args)
@@ -131,7 +184,7 @@ namespace BluetoothHandler
 
 		using namespace Windows::Devices::Enumeration;
 
-		std::cout << "Protection level of device is " << 
+		std::cout << "Protection level of device is " <<
 			(int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
 
 		auto pairResult = co_await bleDevice->DeviceInformation->Pairing->Custom->PairAsync(
@@ -143,7 +196,7 @@ namespace BluetoothHandler
 			std::cout << (int)pairResult->Status << std::endl;
 			co_return false;
 		}
-		
+
 		if (pairResult->ProtectionLevelUsed != DevicePairingProtectionLevel::EncryptionAndAuthentication)
 		{
 			std::cout << "Paired with uncorrect protection level. Likely unable to receive data..." << std::endl;
@@ -151,7 +204,7 @@ namespace BluetoothHandler
 
 		co_return true;
 	}
-	
+
 	concurrency::task<void> UnpairFromDevice()
 	{
 		using namespace Windows::Devices::Enumeration;
@@ -173,7 +226,7 @@ namespace BluetoothHandler
 		auto serviceUUIDs = eventArgs->Advertisement->ServiceUuids;
 		unsigned int index = 0;
 
-		if (!serviceUUIDs->IndexOf(serviceUUID, &index)) return;
+		if (!serviceUUIDs->IndexOf(ServiceUUID, &index)) return;
 
 		std::cout << "Found device with matching service!" << std::endl;
 
@@ -201,7 +254,7 @@ namespace BluetoothHandler
 		{
 			std::cout << "Device is not paired, attempting to pair..." << std::endl;
 			if (PairToDevice().get()) break;
-			
+
 			bleDevice = nullptr;
 			Sleep(3000);
 			bleDevice = ConnectToDevice(address).get();
