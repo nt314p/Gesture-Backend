@@ -11,15 +11,21 @@ static const wchar_t ClassName[] = L"WindowClassName";
 bool autoReconnect = false;
 HMODULE hInstance;
 
+HWND globalHWnd;
+
 void OnBluetoothConnected()
 {
 	std::cout << "Device connected!" << std::endl;
+	Notification::ShowBalloon(globalHWnd, L"Remote connected!", L"Remote was connected");
+	Notification::SetNotificationIconTooltip(L"Remote is connected");
 	PacketParser::ResetLastReceivedDataTime();
 }
 
 void OnBluetoothDisconnected()
 {
 	std::cout << "Device disconnected!" << std::endl;
+	Notification::ShowBalloon(globalHWnd, L"Remote disconnected!", L"Remote was disconnected");
+	Notification::SetNotificationIconTooltip(L"Remote is disconnected");
 	PacketParser::ResetDataAlignment();
 	PacketParser::ResetLastReceivedDataTime();
 
@@ -43,11 +49,11 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		switch (LOWORD(lParam))
 		{
 		case NIN_SELECT:
-			Notification::ShowBalloon(hWnd, L"Remote connected!", L"Remote was connected");
+			//Notification::ShowBalloon(hWnd, L"Remote connected!", L"Remote was connected");
 			break;
 		case WM_CONTEXTMENU:
 			POINT p = { LOWORD(wParam), HIWORD(wParam) };
-			Notification::ShowContextMenu(hWnd, p);
+			Notification::ShowContextMenu(hWnd, p, BluetoothLE::IsConnected(), autoReconnect);
 			break;
 		}
 		break;
@@ -65,13 +71,30 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			autoReconnect = !autoReconnect;
 			break;
 		case Notification::ContextMenuItem::ConnectionActionButton:
-			Notification::DEBUG_localConnection = !Notification::DEBUG_localConnection;
+			if (BluetoothLE::IsConnected())
+			{
+				BluetoothLE::Disconnect();
+			}
+			else {
+				BluetoothLE::AttemptConnection();
+				Notification::SetNotificationIconTooltip(L"Attempting to connect to remote...");
+			}
 			break;
 		}
 		break;
 	}
+	case WM_TIMER:
+		if (!BluetoothLE::IsConnected()) break;
+		if (PacketParser::DataTimeoutExceeded())
+		{
+			std::cout << "Disconnecting..." << std::endl;
+			Notification::ShowBalloon(hWnd, L"Remote disconnected!", L"Remote was disconnected");
+			BluetoothLE::Disconnect(); // TODO: fix dependency and which function calls which
+			// disconnect should call ondisconnected
+		}
+		break;
 	case WM_DESTROY:
-		DeleteNotificationIcon();
+		Notification::DeleteNotificationIcon();
 		PostQuitMessage(0);
 		break;
 	default:
@@ -81,9 +104,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 	return 0;
 }
 
-// TODO: make this method non blocking
-// perhaps return a method to pump?
-void Initialize()
+HWND CreateWindowHandle()
 {
 	std::cout << "Initializing notification handler..." << std::endl;
 
@@ -99,7 +120,7 @@ void Initialize()
 	{
 		DWORD error = GetLastError();
 		std::cout << "RegisterClass failed: " << error << std::endl;
-		return;
+		return NULL;
 	}
 
 	HWND hWnd = CreateWindowEx(0, ClassName, L"", WS_OVERLAPPEDWINDOW,
@@ -109,21 +130,10 @@ void Initialize()
 	{
 		DWORD error = GetLastError();
 		std::cout << "CreateWindowEx failed: " << error << std::endl;
-		return;
+		return NULL;
 	}
 
-	if (LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &balloonIcon) != S_OK)
-		std::cout << "Failed to load balloon icon" << std::endl;
-
-	if (LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &notificationIcon) != S_OK)
-		std::cout << "Failed to load notification icon" << std::endl;
-
-	MSG msg;
-	while (GetMessage(&msg, hWnd, 0, 0) > 0)
-	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
+	return hWnd;
 }
 
 int main(Platform::Array<Platform::String^>^ args)
@@ -145,25 +155,22 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
-	//Notification::Initialize();
+	Notification::Initialize();
 
 	Input::Initialize();
 	BluetoothLE::InitializeWatcher();
-	BluetoothLE::AttemptConnection();
 
-	while (true)
+	HWND hWnd = CreateWindowHandle();
+	if (hWnd == NULL) return 0;
+
+	globalHWnd = hWnd;
+
+	SetTimer(hWnd, 0, 1000, NULL);
+
+	MSG msg;
+	while (GetMessage(&msg, hWnd, 0, 0) > 0)
 	{
-
-		Sleep(200);
-		if (!BluetoothLE::IsConnected()) continue;
-
-		if (PacketParser::DataTimeoutExceeded())
-		{
-			std::cout << "Disconnecting..." << std::endl;
-			Notification::ShowBalloon(L"Remote disconnected!", L"Remote was disconnected");
-			BluetoothLE::Disconnect();
-			Sleep(500);
-			BluetoothLE::AttemptConnection();
-		}
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 	}
 }

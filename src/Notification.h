@@ -12,10 +12,11 @@ namespace Notification
 		// separator at index 5
 		constexpr UINT ExitButton = 6;
 	}
-
+	
+	void Initialize();
 	void AddNotificationIcon(HWND hWnd);
 	void DeleteNotificationIcon();
 	void ShowBalloon(HWND hWnd, LPCWSTR title, LPCWSTR message);
-	void ShowContextMenu(HWND hWnd, POINT pt);
+	void ShowContextMenu(HWND hWnd, POINT pt, bool bleConnected, bool autoReconnect);
 	void SetNotificationIconTooltip(const wchar_t* tooltip);
 }

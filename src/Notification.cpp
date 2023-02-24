@@ -5,9 +5,6 @@
 
 namespace Notification
 {
-	static bool autoReconnect = false;
-	bool DEBUG_localConnection = false;
-
 	static HICON balloonIcon;
 	static HICON notificationIcon;
 
@@ -24,9 +21,6 @@ namespace Notification
 		nid.hBalloonIcon = balloonIcon;
 
 		wcscpy_s(nid.szTip, L"Hello, world!");
-
-		if (LoadIconMetric(NULL, MAKEINTRESOURCE(IDI_QUESTION), LIM_LARGE, &nid.hIcon) != S_OK)
-			std::cout << "Error loading icon!" << std::endl;
 
 		if(!Shell_NotifyIcon(NIM_ADD, &nid))
 			std::cout << "Failed to add icon!" << std::endl;
@@ -110,7 +104,7 @@ namespace Notification
 		SetMenuItemInfo(hMenu, id, true, &mii);
 	}
 
-	void ShowContextMenu(HWND hWnd, POINT pt)
+	void ShowContextMenu(HWND hWnd, POINT pt, bool bleConnected, bool autoReconnect)
 	{
 		HMENU hMenu = CreatePopupMenu();
 		if (hMenu == NULL) return;
@@ -118,7 +112,7 @@ namespace Notification
 		std::wstring statusStr = std::wstring(L"Status: ") + (BluetoothLE::IsConnected() ? L"Connected" : L"Disconnected");
 		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, statusStr.c_str());
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-		const wchar_t* connectionActionStr = DEBUG_localConnection ? L"Connect" : L"Disconnect";
+		const wchar_t* connectionActionStr = !bleConnected ? L"Connect" : L"Disconnect"; // TODO: add additional states (Connecting)
 		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, connectionActionStr);
 		InsertMenuItemString(hMenu, ContextMenuItem::EditInputSettingsButton, 0, L"Edit input settings");
 		InsertMenuItemString(hMenu, ContextMenuItem::AutomaticConnectionCheckbox,
@@ -139,5 +133,14 @@ namespace Notification
 		}
 
 		TrackPopupMenuEx(hMenu, uFlags, pt.x, pt.y, hWnd, NULL);
+	}
+
+	void Initialize()
+	{
+		if (LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &balloonIcon) != S_OK)
+			std::cout << "Failed to load balloon icon" << std::endl;
+
+		if (LoadIconMetric(NULL, L"remy3.ico", LIM_LARGE, &notificationIcon) != S_OK)
+			std::cout << "Failed to load notification icon" << std::endl;
 	}
 }
