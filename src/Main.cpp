@@ -8,10 +8,10 @@
 
 static const wchar_t ClassName[] = L"WindowClassName";
 
-bool autoReconnect = false;
-HMODULE hInstance;
+static bool autoReconnect = false;
+static HMODULE hInstance;
 
-HWND globalHWnd;
+HWND globalHWnd; // TODO: ideally remove this
 
 void OnBluetoothConnected()
 {
@@ -36,8 +36,6 @@ void OnBluetoothDisconnected()
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	std::cout << message << std::endl;
-
 	switch (message)
 	{
 	case WM_CREATE:
@@ -106,7 +104,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 
 HWND CreateWindowHandle()
 {
-	std::cout << "Initializing notification handler..." << std::endl;
+	std::cout << "Creating window handle" << std::endl;
 
 	hInstance = GetModuleHandle(L"");
 
@@ -116,6 +114,7 @@ HWND CreateWindowHandle()
 	wc.lpszClassName = ClassName;
 
 	ATOM atom = RegisterClass(&wc);
+
 	if (!atom)
 	{
 		DWORD error = GetLastError();
@@ -165,7 +164,7 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	globalHWnd = hWnd;
 
-	SetTimer(hWnd, 0, 1000, NULL);
+	SetTimer(hWnd, 0, 1000, NULL); // poll for bluetooth data timeout every 1000 ms
 
 	MSG msg;
 	while (GetMessage(&msg, hWnd, 0, 0) > 0)
@@ -173,4 +172,6 @@ int main(Platform::Array<Platform::String^>^ args)
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
+
+	return 0;
 }

@@ -15,7 +15,7 @@ namespace Input
 
 	static constexpr auto DegreeRange = 500.0f;
 
-	static enum class MiddleMouseAction
+	enum class MiddleMouseAction
 	{
 		None, // Middle mouse is not pressed
 		Undetermined, // Middle mouse has been pressed but we cannot determine an action

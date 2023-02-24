@@ -2,7 +2,6 @@
 #include "Bluetooth.h"
 #include "PacketParser.h"
 #include "Main.h"
-#include <functional>
 #include <ppltasks.h>
 
 using namespace Windows::Devices;
@@ -11,6 +10,10 @@ using namespace Platform;
 
 namespace BluetoothLE
 {
+	static uint8_t buffer[BufferLength] = {};
+	static int readIndex = 0;
+	static int writeIndex = 0;
+
 	static const auto ServiceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
 	static const auto CharacteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
 	static const auto BLEPin = ref new String(L"802048");
@@ -23,6 +26,28 @@ namespace BluetoothLE
 	static Bluetooth::BluetoothLEDevice^ bleDevice;
 	static Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
 
+	void WriteBuffer(uint8_t byte)
+	{
+		buffer[writeIndex] = byte;
+		writeIndex++;
+		if (writeIndex >= BufferLength)	writeIndex = 0;
+	}
+
+	uint8_t ReadBuffer()
+	{
+		auto byte = buffer[readIndex];
+		readIndex++;
+		if (readIndex >= BufferLength) readIndex = 0;
+		return byte;
+	}
+
+	int BufferCount()
+	{
+		int difference = writeIndex - readIndex;
+		if (difference < 0) difference += BufferLength;
+		return difference;
+	}
+
 	bool IsConnected()
 	{
 		return isConnected;
@@ -32,7 +57,13 @@ namespace BluetoothLE
 		Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ args)
 	{
 		// std::cout << "Characteristic value changed!" << std::endl;
-		PacketParser::ProcessCharacteristicValue(args->CharacteristicValue);
+		auto reader = Windows::Storage::Streams::DataReader::FromBuffer(args->CharacteristicValue);
+		while (reader->UnconsumedBufferLength > 0)
+		{
+			WriteBuffer(reader->ReadByte());
+		}
+
+		PacketParser::OnReceivedData();
 	}
 
 	void PrintPairingInfo()
@@ -60,8 +91,8 @@ namespace BluetoothLE
 	concurrency::task<bool> InitializeBLEDevice()
 	{
 		using namespace Bluetooth::GenericAttributeProfile;
-		const auto SuccessStatus = GattCommunicationStatus::Success;
-		const auto NotifyDescriptorValue = GattClientCharacteristicConfigurationDescriptorValue::Notify;
+		constexpr auto SuccessStatus = GattCommunicationStatus::Success;
+		constexpr auto NotifyDescriptorValue = GattClientCharacteristicConfigurationDescriptorValue::Notify;
 
 		std::cout << "Initializing device..." << std::endl;
 
@@ -224,7 +255,7 @@ namespace BluetoothLE
 		printf("Received advertisement. Address: %llx\n", address);
 
 		auto serviceUUIDs = eventArgs->Advertisement->ServiceUuids;
-		unsigned int index = 0;
+		auto index = 0U;
 
 		if (!serviceUUIDs->IndexOf(ServiceUUID, &index)) return;
 
@@ -270,7 +301,9 @@ namespace BluetoothLE
 			bleDevice = nullptr;
 			bleDevice = ConnectToDevice(address).get();
 			bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
-				ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+				ref new TypedEventHandler<DeviceInformationCustomPairing^,
+				DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+
 			bleDeviceInitializationTries++;
 			Sleep(3000);
 		}
@@ -284,11 +317,12 @@ namespace BluetoothLE
 
 	void InitializeWatcher()
 	{
-		bleWatcher = ref new Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher();
-		bleWatcher->ScanningMode = Bluetooth::Advertisement::BluetoothLEScanningMode::Active;
+		using namespace Bluetooth::Advertisement;
+		bleWatcher = ref new BluetoothLEAdvertisementWatcher();
+		bleWatcher->ScanningMode = BluetoothLEScanningMode::Active;
 
-		bleWatcher->Received += ref new TypedEventHandler<Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^,
-			Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^>(&OnAdvertisementReceived);
+		bleWatcher->Received += ref new TypedEventHandler<BluetoothLEAdvertisementWatcher^,
+			BluetoothLEAdvertisementReceivedEventArgs^>(&OnAdvertisementReceived);
 	}
 
 	void AttemptConnection()
@@ -300,6 +334,7 @@ namespace BluetoothLE
 
 	void Disconnect()
 	{
+		// TODO: also unsubscribe from callbacks?
 		isConnected = false;
 		customCharacteristic = nullptr;
 		bleDevice = nullptr;

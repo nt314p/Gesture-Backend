@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "PacketParser.h"
+#include "Bluetooth.h"
 #include "Input.h"
 #include <chrono>
 
@@ -7,39 +8,14 @@ namespace PacketParser
 {
 	static Packet currentPacket;
 
-	static uint8_t buffer[BufferLength] = {};
-	static int readIndex = 0;
-	static int writeIndex = 0;
-
-	static uint8_t byteValidCount[sizeof(Packet)] = {}; // byteValidCount[i] stores how many times the ith byte had a valid signature
+	// byteValidCount[i] stores how many times the ith byte had a valid signature
+	static uint8_t byteValidCount[sizeof(Packet)] = {}; 
 	static int byteIndex = 0;
 	static bool isDataAligned = false;
 	static int attemptedPacketAlignments = 0;
 
 	static auto previousTime = std::chrono::system_clock::now();
 	static auto lastReceivedDataTime = std::chrono::system_clock::now();
-
-	void WriteBuffer(uint8_t byte)
-	{
-		buffer[writeIndex] = byte;
-		writeIndex++;
-		if (writeIndex >= BufferLength)	writeIndex = 0;
-	}
-
-	uint8_t ReadBuffer()
-	{
-		uint8_t byte = buffer[readIndex];
-		readIndex++;
-		if (readIndex >= BufferLength)	readIndex = 0;
-		return byte;
-	}
-
-	int BufferCount()
-	{
-		int difference = writeIndex - readIndex;
-		if (difference < 0) difference += BufferLength;
-		return difference;
-	}
 
 	inline bool HasValidSignature(uint8_t byte)
 	{
@@ -52,7 +28,7 @@ namespace PacketParser
 
 		for (int i = 0; i < sizeof(Packet); i++) // read data into packet struct
 		{
-			byteBuffer[i] = ReadBuffer();
+			byteBuffer[i] = BluetoothLE::ReadBuffer();
 		}
 
 		if (HasValidSignature(currentPacket.ButtonData)) return true;
@@ -73,9 +49,9 @@ namespace PacketParser
 			return false;
 		}
 
-		while (BufferCount() > 0)
+		while (BluetoothLE::BufferCount() > 0)
 		{
-			if (HasValidSignature(ReadBuffer()))
+			if (HasValidSignature(BluetoothLE::ReadBuffer()))
 				byteValidCount[byteIndex]++;
 			else
 				byteValidCount[byteIndex] = 0;
@@ -98,15 +74,24 @@ namespace PacketParser
 		return false;
 	}
 
-	void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue)
+	void CorrectPacketBacklog()
 	{
-		lastReceivedDataTime = std::chrono::system_clock::now();
+		auto packetBacklog = BluetoothLE::BufferCount() / sizeof(Packet);
 
-		auto reader = Windows::Storage::Streams::DataReader::FromBuffer(characteristicValue);
-		while (reader->UnconsumedBufferLength > 0)
+		if (packetBacklog <= MaxPacketBacklog) return;
+		
+		for (unsigned int i = 0; i < (packetBacklog - MaxPacketBacklog) * sizeof(Packet); i++)
 		{
-			WriteBuffer(reader->ReadByte());
+			BluetoothLE::ReadBuffer();
 		}
+
+		std::cout << packetBacklog << std::endl;
+	}
+
+	void OnReceivedData()
+	{
+		using namespace std::chrono;
+		lastReceivedDataTime = system_clock::now();
 
 		if (!isDataAligned)
 		{
@@ -114,17 +99,9 @@ namespace PacketParser
 			return;
 		}
 
-		unsigned int packetBacklog = BufferCount() / sizeof(Packet);
-		if (packetBacklog > MaxPacketBacklog)
-		{
-			for (unsigned int i = 0; i < (packetBacklog - MaxPacketBacklog) * sizeof(Packet); i++)
-			{
-				ReadBuffer();
-			}
-			std::cout << packetBacklog << std::endl;
-		}
+		CorrectPacketBacklog();
 
-		while (BufferCount() >= sizeof(Packet))
+		while (BluetoothLE::BufferCount() >= sizeof(Packet))
 		{
 			if (!TryProcessPacket()) return;
 			//std::cout << packetBacklog << "\t" <<
@@ -132,14 +109,14 @@ namespace PacketParser
 			Input::ProcessPacket(currentPacket);
 		}
 
-		auto t = std::chrono::system_clock::now();
-		auto us = std::chrono::duration_cast<std::chrono::microseconds>(t - previousTime).count();
+		auto t = system_clock::now();
+		auto us = duration_cast<microseconds>(t - previousTime).count();
 
-		auto elapsed = std::chrono::system_clock::now().time_since_epoch();
-		auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+		auto elapsed = system_clock::now().time_since_epoch();
+		auto elapsedUs = duration_cast<microseconds>(elapsed).count();
 
 		/*
-		int ms = us / 1000;
+		int ms = (int)(us / 1000);
 
 		std::cout << elapsedUs << "\t";
 

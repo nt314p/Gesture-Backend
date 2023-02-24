@@ -3,7 +3,6 @@
 namespace PacketParser
 {
 	static constexpr auto Signature = 0b10101000;
-	static constexpr auto BufferLength = 128;
 	static constexpr auto PacketAlignmentAttemptsThreshold = 1000;
 	static constexpr auto MaxPacketBacklog = 3U;
 	static constexpr auto SequentialValidPacketsToAlign = 5;
@@ -12,7 +11,7 @@ namespace PacketParser
 
 	bool DataTimeoutExceeded();
 	void ResetLastReceivedDataTime();
-	void ProcessCharacteristicValue(Windows::Storage::Streams::IBuffer^ characteristicValue);
+	void OnReceivedData();
 	bool TryAlignData();
 	void ResetDataAlignment();
 }

@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "Main.h"
 #include "Notification.h"
-#include "Bluetooth.h"
 
 namespace Notification
 {
@@ -20,7 +19,7 @@ namespace Notification
 		nid.hIcon = notificationIcon;
 		nid.hBalloonIcon = balloonIcon;
 
-		wcscpy_s(nid.szTip, L"Hello, world!");
+		wcscpy_s(nid.szTip, L"");
 
 		if(!Shell_NotifyIcon(NIM_ADD, &nid))
 			std::cout << "Failed to add icon!" << std::endl;
@@ -106,17 +105,20 @@ namespace Notification
 
 	void ShowContextMenu(HWND hWnd, POINT pt, bool bleConnected, bool autoReconnect)
 	{
-		HMENU hMenu = CreatePopupMenu();
+		auto hMenu = CreatePopupMenu();
 		if (hMenu == NULL) return;
 
-		std::wstring statusStr = std::wstring(L"Status: ") + (BluetoothLE::IsConnected() ? L"Connected" : L"Disconnected");
-		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, statusStr.c_str());
+		// TODO: add additional statuses (Connecting)
+		auto statusStr = bleConnected ? L"Status: Connected" : L"Status: Disconnected"; 
+		auto connectionActionStr = !bleConnected ? L"Connect" : L"Disconnect"; 
+		auto autoReconnectFlag = autoReconnect ? (UINT)MFS_CHECKED : 0;
+
+		InsertMenuItemString(hMenu, ContextMenuItem::StatusTitle, MFS_DEFAULT, statusStr);
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
-		const wchar_t* connectionActionStr = !bleConnected ? L"Connect" : L"Disconnect"; // TODO: add additional states (Connecting)
 		InsertMenuItemString(hMenu, ContextMenuItem::ConnectionActionButton, 0, connectionActionStr);
 		InsertMenuItemString(hMenu, ContextMenuItem::EditInputSettingsButton, 0, L"Edit input settings");
 		InsertMenuItemString(hMenu, ContextMenuItem::AutomaticConnectionCheckbox,
-			autoReconnect ? (UINT)MFS_CHECKED : 0, L"Auto reconnect");
+			autoReconnectFlag, L"Auto reconnect");
 		AppendMenu(hMenu, MF_SEPARATOR, 0, 0);
 		InsertMenuItemString(hMenu, ContextMenuItem::ExitButton, 0, L"Exit");
 
@@ -137,10 +139,10 @@ namespace Notification
 
 	void Initialize()
 	{
-		if (LoadIconMetric(NULL, L"remy1.ico", LIM_LARGE, &balloonIcon) != S_OK)
+		if (LoadIconMetric(NULL, BalloonIconName, LIM_LARGE, &balloonIcon) != S_OK)
 			std::cout << "Failed to load balloon icon" << std::endl;
 
-		if (LoadIconMetric(NULL, L"remy3.ico", LIM_LARGE, &notificationIcon) != S_OK)
+		if (LoadIconMetric(NULL, NotificationIconName, LIM_LARGE, &notificationIcon) != S_OK)
 			std::cout << "Failed to load notification icon" << std::endl;
 	}
 }

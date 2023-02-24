@@ -133,7 +133,7 @@ namespace Input
 				middleMouseAction = MiddleMouseAction::Scroll;
 			}
 
-			if (abs(dx) > DragTolerance || abs(dy) > DragTolerance)
+			if (dx * dx + dy * dy > DragTolerance)
 			{
 				middleMouseAction = MiddleMouseAction::Drag;
 			}
