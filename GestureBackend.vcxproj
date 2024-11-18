@@ -199,6 +199,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Bluetooth.cpp" />
+    <ClCompile Include="src\CircularBuffer.cpp" />
     <ClCompile Include="src\Input.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\PacketParser.cpp" />
@@ -207,6 +208,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Bluetooth.h" />
+    <ClInclude Include="src\CircularBuffer.h" />
     <ClInclude Include="src\Input.h" />
     <ClInclude Include="src\Main.h" />
     <ClInclude Include="src\PacketParser.h" />

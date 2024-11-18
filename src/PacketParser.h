@@ -1,4 +1,5 @@
 #pragma once
+#include "Main.h"
 
 namespace PacketParser
 {
@@ -8,6 +9,8 @@ namespace PacketParser
 	static constexpr auto SequentialValidPacketsToAlign = 5;
 	static constexpr auto DataTimeoutThresholdMs = 200;
 	static constexpr auto DataTimeoutDisconnectThresholdMs = 3000;
+
+	extern std::function<void(Packet)> PacketReady;
 
 	bool DataTimeoutExceeded();
 	void ResetLastReceivedDataTime();

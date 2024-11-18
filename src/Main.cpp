@@ -47,7 +47,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		switch (LOWORD(lParam))
 		{
 		case NIN_SELECT:
-			//Notification::ShowBalloon(hWnd, L"Remote connected!", L"Remote was connected");
+			Notification::ShowBalloon(hWnd, L"Remote connected!", L"Remote was connected");
 			break;
 		case WM_CONTEXTMENU:
 			POINT p = { LOWORD(wParam), HIWORD(wParam) };
@@ -158,6 +158,10 @@ int main(Platform::Array<Platform::String^>^ args)
 
 	Input::Initialize();
 	BluetoothLE::InitializeWatcher();
+	BluetoothLE::Connected = OnBluetoothConnected;
+	BluetoothLE::Disconnected = OnBluetoothDisconnected;
+	BluetoothLE::ReceivedData = PacketParser::OnReceivedData;
+	PacketParser::PacketReady = Input::ProcessPacket;
 
 	HWND hWnd = CreateWindowHandle();
 	if (hWnd == NULL) return 0;

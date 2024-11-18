@@ -15,7 +15,7 @@ namespace Input
 
 	static MiddleMouseAction middleMouseAction = MiddleMouseAction::Undetermined;
 
-	Vector3 ToVector3(Vector3Int16 v, float range)
+	static Vector3 ToVector3(Vector3Int16 v, float range)
 	{
 		return {
 			v.X * range / INT16_MAX,
@@ -46,7 +46,7 @@ namespace Input
 		input.mi = mouseInput;
 	}
 
-	void SendMouseInput()
+	static void SendMouseInput()
 	{
 		UINT numEvents = SendInput(1, &input, sizeof(input));
 		if (numEvents == 0)
@@ -88,29 +88,33 @@ namespace Input
 	{
 		auto gyro = ToVector3(packet.Gyro, DegreeRange);
 
-		const uint8_t rightMask = 1 << 0;
-		const uint8_t leftMask = 1 << 1;
-		const uint8_t middleMask = 1 << 2;
-
 		auto currentButtonData = packet.ButtonData;
 		uint8_t buttonChanges = (uint8_t)(currentButtonData ^ previousButtonData);
 
-		//std::cout << gyro.X << "\t" << gyro.Y << "\t" << gyro.Z << std::endl;
+		uint8_t rightChanged = buttonChanges & RightMask;
+		uint8_t rightDown = currentButtonData & RightMask;
+		uint8_t middleChanged = buttonChanges & MiddleMask;
+		uint8_t middleDown = currentButtonData & MiddleMask;
+		uint8_t leftChanged = buttonChanges & LeftMask;
+		uint8_t leftDown = currentButtonData & LeftMask;
 
-		//PrintByte(currentButtonData);
-
-		if (buttonChanges & rightMask)
-			MouseClick(currentButtonData & rightMask ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP);
-
-		if (buttonChanges & middleMask)
+		if (rightChanged)
 		{
-			bool isMiddlePressed = currentButtonData & middleMask;
-			MouseClick(isMiddlePressed ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP);
-			middleMouseAction = isMiddlePressed ? MiddleMouseAction::Undetermined : MiddleMouseAction::None;
+			MouseClick(rightDown ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP);
 		}
 
-		if (buttonChanges & leftMask)
-			MouseClick(currentButtonData & leftMask ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP);
+
+		if (leftChanged)
+		{
+			MouseClick(leftDown ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP);
+		}
+
+		if (middleChanged)
+		{
+			MouseClick(middleDown ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP);
+			middleMouseAction = middleDown ? MiddleMouseAction::Undetermined : MiddleMouseAction::None;
+		}
+
 
 		previousButtonData = currentButtonData;
 
@@ -144,8 +148,10 @@ namespace Input
 			Scroll((int)roundf(cookedScroll));
 		}
 
+		bool noMovement = cookedDx == 0 && cookedDy == 0;
+
 		// allow free mouse movement when no input is given or when scrolling
-		if (cookedDx == 0 && cookedDy == 0 || middleMouseAction == MiddleMouseAction::Scroll)
+		if (noMovement || middleMouseAction == MiddleMouseAction::Scroll)
 		{
 			GetCursorPos(&cursor);
 			mouseX = (float)cursor.x;

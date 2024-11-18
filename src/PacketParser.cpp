@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "PacketParser.h"
-#include "Bluetooth.h"
 #include "Input.h"
+#include "CircularBuffer.h"
 #include <chrono>
 
 namespace PacketParser
@@ -14,21 +14,30 @@ namespace PacketParser
 	static bool isDataAligned = false;
 	static int attemptedPacketAlignments = 0;
 
+	std::function<void(Packet)> PacketReady;
+
 	static auto previousTime = std::chrono::system_clock::now();
 	static auto lastReceivedDataTime = std::chrono::system_clock::now();
 
-	inline bool HasValidSignature(uint8_t byte)
+	static CircularBuffer* buffer;
+
+	static void SetBuffer(CircularBuffer* circularBuffer)
+	{
+		PacketParser::buffer = circularBuffer;
+	}
+
+	inline static bool HasValidSignature(uint8_t byte)
 	{
 		return (byte & 0b11111000) == Signature;
 	}
 
-	bool TryProcessPacket()
+	static bool TryProcessPacket()
 	{
 		uint8_t* byteBuffer = (uint8_t*)&currentPacket;
 
 		for (int i = 0; i < sizeof(Packet); i++) // read data into packet struct
 		{
-			byteBuffer[i] = BluetoothLE::ReadBuffer();
+			byteBuffer[i] = buffer->ReadBuffer();
 		}
 
 		if (HasValidSignature(currentPacket.ButtonData)) return true;
@@ -49,12 +58,16 @@ namespace PacketParser
 			return false;
 		}
 
-		while (BluetoothLE::BufferCount() > 0)
+		while (buffer->BufferCount() > 0)
 		{
-			if (HasValidSignature(BluetoothLE::ReadBuffer()))
+			if (HasValidSignature(buffer->ReadBuffer()))
+			{
 				byteValidCount[byteIndex]++;
+			}
 			else
+			{
 				byteValidCount[byteIndex] = 0;
+			}
 
 			if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
 			{
@@ -74,15 +87,15 @@ namespace PacketParser
 		return false;
 	}
 
-	void CorrectPacketBacklog()
+	static void CorrectPacketBacklog()
 	{
-		auto packetBacklog = BluetoothLE::BufferCount() / sizeof(Packet);
+		auto packetBacklog = buffer->BufferCount() / sizeof(Packet);
 
 		if (packetBacklog <= MaxPacketBacklog) return;
 		
 		for (unsigned int i = 0; i < (packetBacklog - MaxPacketBacklog) * sizeof(Packet); i++)
 		{
-			BluetoothLE::ReadBuffer();
+			buffer->ReadBuffer();
 		}
 
 		std::cout << packetBacklog << std::endl;
@@ -101,12 +114,11 @@ namespace PacketParser
 
 		CorrectPacketBacklog();
 
-		while (BluetoothLE::BufferCount() >= sizeof(Packet))
+		while (buffer->BufferCount() >= sizeof(Packet))
 		{
 			if (!TryProcessPacket()) return;
-			//std::cout << packetBacklog << "\t" <<
-			//	currentPacket.Gyro.X << "\t" << currentPacket.Gyro.Y << "\t" << currentPacket.Gyro.Z << std::endl;
-			Input::ProcessPacket(currentPacket);
+
+			PacketReady(currentPacket);
 		}
 
 		auto t = system_clock::now();
@@ -114,18 +126,6 @@ namespace PacketParser
 
 		auto elapsed = system_clock::now().time_since_epoch();
 		auto elapsedUs = duration_cast<microseconds>(elapsed).count();
-
-		/*
-		int ms = (int)(us / 1000);
-
-		std::cout << elapsedUs << "\t";
-
-		for (int i = 0; i < ms; i++)
-		{
-			std::cout << "#";
-		}
-
-		std::cout << std::endl;*/
 
 		previousTime = t;
 	}

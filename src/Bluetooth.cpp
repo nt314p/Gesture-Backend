@@ -1,52 +1,26 @@
 #include "pch.h"
 #include "Bluetooth.h"
-#include "PacketParser.h"
-#include "Main.h"
+#include "CircularBuffer.h"
 #include <ppltasks.h>
-
-using namespace Windows::Devices;
-using namespace Windows::Foundation;
-using namespace Platform;
 
 namespace BluetoothLE
 {
-	static uint8_t buffer[BufferLength] = {};
-	static int readIndex = 0;
-	static int writeIndex = 0;
+	using namespace Windows::Devices;
+	using namespace Windows::Foundation;
+	using namespace Platform;
 
-	static const auto ServiceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe0);
-	static const auto CharacteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(0xffe1);
-	static const auto BLEPin = ref new String(L"802048");
+	static CircularBuffer buffer;
 
 	static unsigned int bleDeviceInitializationTries = 0;
-
 	static bool isConnected;
+
+	std::function<void()> Connected;
+	std::function<void()> Disconnected;
+	std::function<void()> ReceivedData;
 
 	static Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
 	static Bluetooth::BluetoothLEDevice^ bleDevice;
 	static Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
-
-	void WriteBuffer(uint8_t byte)
-	{
-		buffer[writeIndex] = byte;
-		writeIndex++;
-		if (writeIndex >= BufferLength)	writeIndex = 0;
-	}
-
-	uint8_t ReadBuffer()
-	{
-		auto byte = buffer[readIndex];
-		readIndex++;
-		if (readIndex >= BufferLength) readIndex = 0;
-		return byte;
-	}
-
-	int BufferCount()
-	{
-		int difference = writeIndex - readIndex;
-		if (difference < 0) difference += BufferLength;
-		return difference;
-	}
 
 	bool IsConnected()
 	{
@@ -60,10 +34,10 @@ namespace BluetoothLE
 		auto reader = Windows::Storage::Streams::DataReader::FromBuffer(args->CharacteristicValue);
 		while (reader->UnconsumedBufferLength > 0)
 		{
-			WriteBuffer(reader->ReadByte());
+			buffer.WriteBuffer(reader->ReadByte());
 		}
 
-		PacketParser::OnReceivedData();
+		ReceivedData();
 	}
 
 	void PrintPairingInfo()
@@ -203,9 +177,9 @@ namespace BluetoothLE
 		if (sender->ConnectionStatus == Bluetooth::BluetoothConnectionStatus::Disconnected)
 		{
 			isConnected = false;
-			OnBluetoothDisconnected();
 			customCharacteristic = nullptr;
 			bleDevice = nullptr;
+			Disconnected();
 		}
 	}
 
@@ -312,7 +286,7 @@ namespace BluetoothLE
 			ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(&OnConnectionChanged);
 
 		isConnected = true;
-		OnBluetoothConnected();
+		Connected();
 	}
 
 	void InitializeWatcher()

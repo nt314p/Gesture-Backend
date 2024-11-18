@@ -23,6 +23,3 @@ struct Packet
 	uint8_t ButtonData;
 };
 #pragma pack(pop)
-
-void OnBluetoothConnected();
-void OnBluetoothDisconnected();

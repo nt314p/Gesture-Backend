@@ -15,6 +15,10 @@ namespace Input
 
 	static constexpr auto DegreeRange = 500.0f;
 
+	static const uint8_t RightMask = 1 << 0;
+	static const uint8_t LeftMask = 1 << 1;
+	static const uint8_t MiddleMask = 1 << 2;
+
 	enum class MiddleMouseAction
 	{
 		None, // Middle mouse is not pressed
