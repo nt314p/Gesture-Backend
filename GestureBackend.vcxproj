@@ -74,21 +74,26 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtGui;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtCore;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtGui;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtCore;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtGui;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtCore;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtGui;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtCore;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtGui;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include\QtCore;C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -98,9 +103,9 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
@@ -108,12 +113,14 @@
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <CallingConvention>Cdecl</CallingConvention>
       <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>C:\Users\Nicolas\Dev\GestureBackend\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include;C:\Users\Nicolas\Dev\GestureBackend\src;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtCore;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtGui</AdditionalIncludeDirectories>
       <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Core.lib;Qt6Gui.lib;Qt6Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -126,23 +133,25 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
       <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <CallingConvention>Cdecl</CallingConvention>
-      <AdditionalIncludeDirectories>C:\Users\Nicolas\Dev\GestureBackend\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include;C:\Users\Nicolas\Dev\GestureBackend\src;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtWidgets;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtCore;C:\Users\Nicolas\Documents\Qt\6.8.0\mingw_64\include\QtGui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Core.lib;Qt6Gui.lib;Qt6Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -153,10 +162,10 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalUsingDirectories>C:\Program Files %28x86%29\Microsoft Visual Studio\2019\Community\Common7\IDE\VC\vcpackages;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.20348.0\Windows.Foundation.UniversalApiContract\12.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.20348.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.20348.0;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
@@ -167,6 +176,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Core.lib;Qt6Gui.lib;Qt6Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -179,10 +190,10 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalUsingDirectories>C:\Program Files %28x86%29\Microsoft Visual Studio\2019\Community\Common7\IDE\VC\vcpackages;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.20348.0\Windows.Foundation.UniversalApiContract\12.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.20348.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.20348.0;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsManaged>false</CompileAsManaged>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
       <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
       <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
@@ -195,6 +206,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\Nicolas\Documents\Qt\6.8.0\msvc2022_64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Core.lib;Qt6Gui.lib;Qt6Widgets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

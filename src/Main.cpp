@@ -5,6 +5,9 @@
 #include "Bluetooth.h"
 #include "PacketParser.h"
 #include "Main.h"
+#include <QApplication>
+#include <QLabel>
+#include <QTimer>
 
 static const wchar_t ClassName[] = L"WindowClassName";
 
@@ -12,6 +15,8 @@ static bool autoReconnect = false;
 static HMODULE hInstance;
 
 HWND globalHWnd; // TODO: ideally remove this
+
+/*
 
 void OnBluetoothConnected()
 {
@@ -133,7 +138,22 @@ HWND CreateWindowHandle()
 	}
 
 	return hWnd;
+}*/
+
+int main(int argc, char* argv[]) {
+
+	QApplication app(argc, argv);
+	QLabel label("Hello, Qt in Visual Studio!");
+	label.show();
+
+	BluetoothLE::BLEDevice bleDevice = BluetoothLE::BLEDevice(0xffe0, 0xffe1, L"802048");
+
+	QTimer::singleShot(0, std::bind(&BluetoothLE::BLEDevice::InitializeWatcher, bleDevice));
+
+	return app.exec();
 }
+
+/*
 
 int main(Platform::Array<Platform::String^>^ args)
 {
@@ -178,4 +198,4 @@ int main(Platform::Array<Platform::String^>^ args)
 	}
 
 	return 0;
-}
+}*/

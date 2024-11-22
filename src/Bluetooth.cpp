@@ -3,31 +3,18 @@
 #include "CircularBuffer.h"
 #include <ppltasks.h>
 
-namespace BluetoothLE
+namespace BluetoothLE // TODO: convert to class
 {
 	using namespace Windows::Devices;
 	using namespace Windows::Foundation;
-	using namespace Platform;
+	using namespace Platform;	
 
-	static CircularBuffer buffer;
-
-	static unsigned int bleDeviceInitializationTries = 0;
-	static bool isConnected;
-
-	std::function<void()> Connected;
-	std::function<void()> Disconnected;
-	std::function<void()> ReceivedData;
-
-	static Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
-	static Bluetooth::BluetoothLEDevice^ bleDevice;
-	static Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
-
-	bool IsConnected()
+	bool BLEDevice::IsConnected()
 	{
 		return isConnected;
 	}
 
-	void OnCharacteristicValueChanged(Bluetooth::GenericAttributeProfile::GattCharacteristic^ sender,
+	void BLEDevice::OnCharacteristicValueChanged(Bluetooth::GenericAttributeProfile::GattCharacteristic^ sender,
 		Bluetooth::GenericAttributeProfile::GattValueChangedEventArgs^ args)
 	{
 		// std::cout << "Characteristic value changed!" << std::endl;
@@ -40,14 +27,14 @@ namespace BluetoothLE
 		ReceivedData();
 	}
 
-	void PrintPairingInfo()
+	void PrintPairingInfo(Bluetooth::BluetoothLEDevice^ bleDevice)
 	{
 		std::cout << "Is paired: " << bleDevice->DeviceInformation->Pairing->IsPaired << std::endl;
 		std::cout << "Can pair: " << bleDevice->DeviceInformation->Pairing->CanPair << std::endl;
 		std::cout << "Protection level: " << (int)bleDevice->DeviceInformation->Pairing->ProtectionLevel << std::endl;
 	}
 
-	concurrency::task<Bluetooth::GenericAttributeProfile::GattDeviceServicesResult^> FetchServices()
+	concurrency::task<Bluetooth::GenericAttributeProfile::GattDeviceServicesResult^> BLEDevice::FetchServices()
 	{
 		Bluetooth::GenericAttributeProfile::GattDeviceServicesResult^ servicesResult = nullptr;
 		try
@@ -62,7 +49,7 @@ namespace BluetoothLE
 		}
 	}
 
-	concurrency::task<bool> InitializeBLEDevice()
+	concurrency::task<bool> BLEDevice::InitializeBLEDevice()
 	{
 		using namespace Bluetooth::GenericAttributeProfile;
 		constexpr auto SuccessStatus = GattCommunicationStatus::Success;
@@ -155,24 +142,33 @@ namespace BluetoothLE
 
 		using namespace Bluetooth::GenericAttributeProfile;
 		customCharacteristic->ValueChanged +=
-			ref new TypedEventHandler<GattCharacteristic^, GattValueChangedEventArgs^>(&OnCharacteristicValueChanged);
+			ref new TypedEventHandler<GattCharacteristic^, GattValueChangedEventArgs^>(
+				[this](GattCharacteristic^ characteristic, GattValueChangedEventArgs^ args) {
+					this->OnCharacteristicValueChanged(characteristic, args);
+				});
 
 		co_return true;
 	}
 
-	concurrency::task<Bluetooth::BluetoothLEDevice^> ConnectToDevice(unsigned long long address)
+	concurrency::task<Bluetooth::BluetoothLEDevice^> BLEDevice::ConnectToDevice(unsigned long long address)
 	{
 		co_return co_await Bluetooth::BluetoothLEDevice::FromBluetoothAddressAsync(address);
 	}
 
-	void OnPairingRequested(Windows::Devices::Enumeration::DeviceInformationCustomPairing^ sender,
+	void _OnPairingRequested(Windows::Devices::Enumeration::DeviceInformationCustomPairing^ sender,
+		Windows::Devices::Enumeration::DevicePairingRequestedEventArgs^ args)
+	{
+		
+	}
+
+	void BLEDevice::OnPairingRequested(Windows::Devices::Enumeration::DeviceInformationCustomPairing^ sender,
 		Windows::Devices::Enumeration::DevicePairingRequestedEventArgs^ args)
 	{
 		std::cout << "Received pairing request!" << std::endl;
-		args->Accept(BLEPin);
+		args->Accept(Pin);
 	}
 
-	void OnConnectionChanged(Bluetooth::BluetoothLEDevice^ sender, Platform::Object^ args)
+	void BLEDevice::OnConnectionChanged(Bluetooth::BluetoothLEDevice^ sender, Platform::Object^ args)
 	{
 		if (sender->ConnectionStatus == Bluetooth::BluetoothConnectionStatus::Disconnected)
 		{
@@ -183,7 +179,7 @@ namespace BluetoothLE
 		}
 	}
 
-	concurrency::task<bool> PairToDevice()
+	concurrency::task<bool> BLEDevice::PairToDevice()
 	{
 		std::cout << "Triggered pairing..." << std::endl;
 
@@ -210,7 +206,7 @@ namespace BluetoothLE
 		co_return true;
 	}
 
-	concurrency::task<void> UnpairFromDevice()
+	concurrency::task<void> BLEDevice::UnpairFromDevice()
 	{
 		using namespace Windows::Devices::Enumeration;
 		auto unpairingResult = co_await bleDevice->DeviceInformation->Pairing->UnpairAsync();
@@ -218,7 +214,7 @@ namespace BluetoothLE
 			std::cout << "Successfully unpaired" << std::endl;
 	}
 
-	void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
+	void BLEDevice::OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
 		Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ eventArgs)
 	{
 		if (watcher->Status == Bluetooth::Advertisement::BluetoothLEAdvertisementWatcherStatus::Stopped)
@@ -242,9 +238,13 @@ namespace BluetoothLE
 		using namespace Windows::Devices::Enumeration;
 
 		bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
-			ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+			ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(
+				[this](DeviceInformationCustomPairing^ pairing, DevicePairingRequestedEventArgs^ args) {
+					this->OnPairingRequested(pairing, args);
+				});
 
-		PrintPairingInfo();
+
+		PrintPairingInfo(bleDevice);
 
 		if (bleDevice->DeviceInformation->Pairing->IsPaired && false)
 		{
@@ -264,10 +264,13 @@ namespace BluetoothLE
 			Sleep(3000);
 			bleDevice = ConnectToDevice(address).get();
 			bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
-				ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+				ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(
+					[this](DeviceInformationCustomPairing^ pairing, DevicePairingRequestedEventArgs^ args) {
+						this->OnPairingRequested(pairing, args);
+					});
 		}
 
-		PrintPairingInfo();
+		PrintPairingInfo(bleDevice);
 
 		while (!InitializeBLEDevice().get())
 		{
@@ -276,41 +279,62 @@ namespace BluetoothLE
 			bleDevice = ConnectToDevice(address).get();
 			bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
 				ref new TypedEventHandler<DeviceInformationCustomPairing^,
-				DevicePairingRequestedEventArgs^>(&OnPairingRequested);
+				DevicePairingRequestedEventArgs^>(
+					[this](DeviceInformationCustomPairing^ pairing, DevicePairingRequestedEventArgs^ args) {
+						this->OnPairingRequested(pairing, args);
+					});
 
 			bleDeviceInitializationTries++;
-			Sleep(3000);
+			Sleep(3000); // TODO: make constant
 		}
 
 		bleDevice->ConnectionStatusChanged +=
-			ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(&OnConnectionChanged);
+			ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(
+				[this](Bluetooth::BluetoothLEDevice^ device, Platform::Object^ obj) {
+					this->OnConnectionChanged(device, obj);
+				});
+
 
 		isConnected = true;
 		Connected();
 	}
 
-	void InitializeWatcher()
+	void BLEDevice::InitializeWatcher()
 	{
 		using namespace Bluetooth::Advertisement;
 		bleWatcher = ref new BluetoothLEAdvertisementWatcher();
 		bleWatcher->ScanningMode = BluetoothLEScanningMode::Active;
 
-		bleWatcher->Received += ref new TypedEventHandler<BluetoothLEAdvertisementWatcher^,
-			BluetoothLEAdvertisementReceivedEventArgs^>(&OnAdvertisementReceived);
+		bleWatcher->Received += ref new TypedEventHandler<
+			BluetoothLEAdvertisementWatcher^,
+			BluetoothLEAdvertisementReceivedEventArgs^>(
+				[this](BluetoothLEAdvertisementWatcher^ watcher,
+					BluetoothLEAdvertisementReceivedEventArgs^ args) {
+						this->OnAdvertisementReceived(watcher, args);
+				});
+
+		std::cout << "Bluetooth watcher initialized" << std::endl;
 	}
 
-	void AttemptConnection()
+	void BLEDevice::AttemptConnection()
 	{
 		bleWatcher->Stop();
 		bleWatcher->Start();
 		std::cout << "Watching for BLE device advertisements..." << std::endl;
 	}
 
-	void Disconnect()
+	void BLEDevice::Disconnect()
 	{
 		// TODO: also unsubscribe from callbacks?
 		isConnected = false;
 		customCharacteristic = nullptr;
 		bleDevice = nullptr;
+	}
+
+	BLEDevice::BLEDevice(unsigned int serviceId, unsigned int characteristicId, const wchar_t* pin)
+	{
+		ServiceUUID = Bluetooth::BluetoothUuidHelper::FromShortId(serviceId);
+		CharacteristicUUID = Bluetooth::BluetoothUuidHelper::FromShortId(characteristicId);
+		Pin = ref new String(pin);
 	}
 }
