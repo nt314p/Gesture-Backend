@@ -13,24 +13,18 @@ namespace BluetoothLE
 	class BLEDevice
 	{
 	private:
-		Guid ServiceUUID; // TODO: test if moving these back throws errors
+		Guid ServiceUUID;
 		Guid CharacteristicUUID;
-		String^ Pin;// = ref new String(L"802048");
+		String^ Pin;
+		unsigned int bleDeviceInitializationTries = 0;
 		bool isConnected;
-		CircularBuffer buffer;
+		
 
 		Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
 		Bluetooth::BluetoothLEDevice^ bleDevice;
 		Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
 
-		unsigned int bleDeviceInitializationTries = 0;
-
-		concurrency::task<Bluetooth::GenericAttributeProfile::GattDeviceServicesResult^> FetchServices();
-		concurrency::task<bool> InitializeBLEDevice();
-		concurrency::task<Bluetooth::BluetoothLEDevice^> ConnectToDevice(unsigned long long address);
-
-		concurrency::task<bool> PairToDevice();
-		concurrency::task<void> UnpairFromDevice();
+		concurrency::task<bool> InitializeDevice();
 
 		void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
 			Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ eventArgs);
@@ -48,9 +42,10 @@ namespace BluetoothLE
 		std::function<void()> Disconnected;
 		std::function<void()> ReceivedData;
 
-		void InitializeWatcher();
+		CircularBuffer buffer;
+
 		void AttemptConnection();
-		bool IsConnected();
+		bool IsConnected() const;
 		void Disconnect();
 
 		BLEDevice(unsigned int serviceId, unsigned int characteristicId, const wchar_t* pin);

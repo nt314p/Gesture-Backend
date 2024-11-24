@@ -91,12 +91,12 @@ namespace Input
 		auto currentButtonData = packet.ButtonData;
 		uint8_t buttonChanges = (uint8_t)(currentButtonData ^ previousButtonData);
 
-		uint8_t rightChanged = buttonChanges & RightMask;
-		uint8_t rightDown = currentButtonData & RightMask;
-		uint8_t middleChanged = buttonChanges & MiddleMask;
-		uint8_t middleDown = currentButtonData & MiddleMask;
-		uint8_t leftChanged = buttonChanges & LeftMask;
-		uint8_t leftDown = currentButtonData & LeftMask;
+		int rightChanged = buttonChanges & RightMask;
+		int rightDown = currentButtonData & RightMask;
+		int middleChanged = buttonChanges & MiddleMask;
+		int middleDown = currentButtonData & MiddleMask;
+		int leftChanged = buttonChanges & LeftMask;
+		int leftDown = currentButtonData & LeftMask;
 
 		if (rightChanged)
 		{
@@ -114,7 +114,6 @@ namespace Input
 			MouseClick(middleDown ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP);
 			middleMouseAction = middleDown ? MiddleMouseAction::Undetermined : MiddleMouseAction::None;
 		}
-
 
 		previousButtonData = currentButtonData;
 

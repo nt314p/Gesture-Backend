@@ -5,11 +5,9 @@
 #include "Bluetooth.h"
 #include "PacketParser.h"
 #include "Main.h"
+#include "TrayWindow.h"
 #include <QApplication>
-#include <QLabel>
-#include <QTimer>
-
-static const wchar_t ClassName[] = L"WindowClassName";
+#include <QFont>
 
 static bool autoReconnect = false;
 static HMODULE hInstance;
@@ -140,15 +138,42 @@ HWND CreateWindowHandle()
 	return hWnd;
 }*/
 
+void OnBLEConnected()
+{
+	std::cout << "BLE device connected!" << std::endl;
+}
+
+void OnBLEDisconnected()
+{
+	std::cout << "BLE device disconnected!" << std::endl;
+}
+
+
 int main(int argc, char* argv[]) {
 
 	QApplication app(argc, argv);
-	QLabel label("Hello, Qt in Visual Studio!");
-	label.show();
+	QApplication::setQuitOnLastWindowClosed(false);
+
+	QFont font("Roboto");
+	app.setFont(font);
+
+	TrayWindow trayWindow;
+	trayWindow.show();
+
+	Input::Initialize();
 
 	BluetoothLE::BLEDevice bleDevice = BluetoothLE::BLEDevice(0xffe0, 0xffe1, L"802048");
+	bleDevice.Connected = OnBLEConnected;
+	bleDevice.Disconnected = OnBLEDisconnected;
+	bleDevice.ReceivedData = PacketParser::OnReceivedData;
+	//PacketParser::PacketReady = Input::ProcessPacket;
+	PacketParser::SetBuffer(&bleDevice.buffer);
 
-	QTimer::singleShot(0, std::bind(&BluetoothLE::BLEDevice::InitializeWatcher, bleDevice));
+	QTimer::singleShot(0, std::bind(&BluetoothLE::BLEDevice::AttemptConnection, bleDevice));
+	QTimer bleTimer;
+	//QObject::connect(&bleTimer, &QTimer::timeout, nullptr, )
+
+
 
 	return app.exec();
 }

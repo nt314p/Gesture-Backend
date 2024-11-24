@@ -2,6 +2,7 @@
 #include "PacketParser.h"
 #include "Input.h"
 #include "CircularBuffer.h"
+#include <bitset>
 #include <chrono>
 
 namespace PacketParser
@@ -21,7 +22,7 @@ namespace PacketParser
 
 	static CircularBuffer* buffer;
 
-	static void SetBuffer(CircularBuffer* circularBuffer)
+	void SetBuffer(CircularBuffer* circularBuffer)
 	{
 		PacketParser::buffer = circularBuffer;
 	}
@@ -44,6 +45,7 @@ namespace PacketParser
 
 		isDataAligned = false;
 		attemptedPacketAlignments = 0;
+
 		std::cout << "Data misaligned! Attempting to realign..." << std::endl;
 
 		return false;
@@ -97,8 +99,6 @@ namespace PacketParser
 		{
 			buffer->ReadBuffer();
 		}
-
-		std::cout << packetBacklog << std::endl;
 	}
 
 	void OnReceivedData()
@@ -118,7 +118,7 @@ namespace PacketParser
 		{
 			if (!TryProcessPacket()) return;
 
-			PacketReady(currentPacket);
+			if (PacketReady) PacketReady(currentPacket);
 		}
 
 		auto t = system_clock::now();

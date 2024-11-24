@@ -103,7 +103,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus /Wall</AdditionalOptions>
       <CompileAsManaged>false</CompileAsManaged>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
@@ -133,7 +133,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus /Wall</AdditionalOptions>
       <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsManaged>false</CompileAsManaged>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -162,7 +162,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus /Wall</AdditionalOptions>
       <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsManaged>false</CompileAsManaged>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -190,7 +190,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAsWinRT>true</CompileAsWinRT>
-      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalOptions>/Zc:twoPhase- /await /experimental:external /external:anglebrackets /external:I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\include\vccorlib.h" /Zc:__cplusplus /Wall</AdditionalOptions>
       <AdditionalUsingDirectories>C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.UniversalApiContract\14.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\References\10.0.22000.0\Windows.Foundation.FoundationContract\4.0.0.0;C:\Program Files %28x86%29\Windows Kits\10\UnionMetadata\10.0.22000.0;C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VC\vcpackages;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsManaged>false</CompileAsManaged>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
@@ -218,6 +218,7 @@
     <ClCompile Include="src\PacketParser.cpp" />
     <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\Notification.cpp" />
+    <ClCompile Include="src\TrayWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Bluetooth.h" />
@@ -227,6 +228,7 @@
     <ClInclude Include="src\PacketParser.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\Notification.h" />
+    <ClInclude Include="src\TrayWindow.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

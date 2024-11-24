@@ -1,5 +1,6 @@
 #pragma once
 #include "Main.h"
+#include "CircularBuffer.h"
 
 namespace PacketParser
 {
@@ -12,6 +13,7 @@ namespace PacketParser
 
 	extern std::function<void(Packet)> PacketReady;
 
+	void SetBuffer(CircularBuffer* circularBuffer);
 	bool DataTimeoutExceeded();
 	void ResetLastReceivedDataTime();
 	void OnReceivedData();
