@@ -166,14 +166,12 @@ int main(int argc, char* argv[]) {
 	bleDevice.Connected = OnBLEConnected;
 	bleDevice.Disconnected = OnBLEDisconnected;
 	bleDevice.ReceivedData = PacketParser::OnReceivedData;
-	//PacketParser::PacketReady = Input::ProcessPacket;
+	PacketParser::PacketReady = Input::ProcessPacket;
 	PacketParser::SetBuffer(&bleDevice.buffer);
 
 	QTimer::singleShot(0, std::bind(&BluetoothLE::BLEDevice::AttemptConnection, bleDevice));
 	QTimer bleTimer;
 	//QObject::connect(&bleTimer, &QTimer::timeout, nullptr, )
-
-
 
 	return app.exec();
 }

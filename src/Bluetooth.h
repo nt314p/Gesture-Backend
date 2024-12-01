@@ -9,6 +9,9 @@ namespace BluetoothLE
 	using namespace Platform;
 
 	static constexpr auto BluetoothScanningTimeoutMinutes = 5; // TODO: implement timeout
+	static constexpr auto DataTimeoutThresholdMs = 200;
+	static constexpr auto DataTimeoutDisconnectThresholdMs = 3000; // Disconnects after exceeding this threshold
+	// TODO: implement disconnection. ideally object drives its own timer for disconnection?
 
 	class BLEDevice
 	{
@@ -16,15 +19,18 @@ namespace BluetoothLE
 		Guid ServiceUUID;
 		Guid CharacteristicUUID;
 		String^ Pin;
+
 		unsigned int bleDeviceInitializationTries = 0;
 		bool isConnected;
-		
+
+		std::chrono::time_point<std::chrono::system_clock> lastReceivedDataTime;
 
 		Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ bleWatcher;
 		Bluetooth::BluetoothLEDevice^ bleDevice;
 		Bluetooth::GenericAttributeProfile::GattCharacteristic^ customCharacteristic;
 
 		concurrency::task<bool> InitializeDevice();
+		bool DataTimeoutExceeded() const;
 
 		void OnAdvertisementReceived(Bluetooth::Advertisement::BluetoothLEAdvertisementWatcher^ watcher,
 			Bluetooth::Advertisement::BluetoothLEAdvertisementReceivedEventArgs^ eventArgs);

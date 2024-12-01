@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "PacketParser.h"
-#include "Input.h"
 #include "CircularBuffer.h"
 #include <bitset>
 #include <chrono>
@@ -8,19 +7,12 @@
 namespace PacketParser
 {
 	static Packet currentPacket;
+	static CircularBuffer* buffer;
 
-	// byteValidCount[i] stores how many times the ith byte had a valid signature
-	static uint8_t byteValidCount[sizeof(Packet)] = {}; 
-	static int byteIndex = 0;
 	static bool isDataAligned = false;
 	static int attemptedPacketAlignments = 0;
 
 	std::function<void(Packet)> PacketReady;
-
-	static auto previousTime = std::chrono::system_clock::now();
-	static auto lastReceivedDataTime = std::chrono::system_clock::now();
-
-	static CircularBuffer* buffer;
 
 	void SetBuffer(CircularBuffer* circularBuffer)
 	{
@@ -29,7 +21,7 @@ namespace PacketParser
 
 	inline static bool HasValidSignature(uint8_t byte)
 	{
-		return (byte & 0b11111000) == Signature;
+		return (byte & SignatureMask) == Signature;
 	}
 
 	static bool TryProcessPacket()
@@ -41,24 +33,15 @@ namespace PacketParser
 			byteBuffer[i] = buffer->ReadBuffer();
 		}
 
-		if (HasValidSignature(currentPacket.ButtonData)) return true;
-
-		isDataAligned = false;
-		attemptedPacketAlignments = 0;
-
-		std::cout << "Data misaligned! Attempting to realign..." << std::endl;
-
-		return false;
+		return HasValidSignature(currentPacket.ButtonData);
 	}
 
 	// Attempts to align data currently in the buffer
 	bool TryAlignData()
 	{
-		if (attemptedPacketAlignments > PacketAlignmentAttemptsThreshold)
-		{
-			std::cout << "Tried to align " << PacketAlignmentAttemptsThreshold << " packets with no success" << std::endl;
-			return false;
-		}
+		// byteValidCount[i] stores how many times the ith byte had a valid signature
+		static uint8_t byteValidCount[sizeof(Packet)] = {};
+		static int byteIndex = 0;
 
 		while (buffer->BufferCount() > 0)
 		{
@@ -74,7 +57,6 @@ namespace PacketParser
 			if (byteValidCount[byteIndex] >= SequentialValidPacketsToAlign)
 			{
 				isDataAligned = true;
-				std::cout << "Data aligned!" << std::endl;
 				return true;
 			}
 
@@ -91,7 +73,7 @@ namespace PacketParser
 
 	static void CorrectPacketBacklog()
 	{
-		auto packetBacklog = buffer->BufferCount() / sizeof(Packet);
+		auto packetBacklog = buffer->BufferCount() / (int)sizeof(Packet);
 
 		if (packetBacklog <= MaxPacketBacklog) return;
 		
@@ -103,56 +85,43 @@ namespace PacketParser
 
 	void OnReceivedData()
 	{
-		using namespace std::chrono;
-		lastReceivedDataTime = system_clock::now();
-
 		if (!isDataAligned)
 		{
-			TryAlignData();
+			if (attemptedPacketAlignments > PacketAlignmentAttemptsThreshold)
+			{
+				std::cout << "Tried to align " << PacketAlignmentAttemptsThreshold << " packets with no success" << std::endl;
+				return;
+			}
+
+			if (TryAlignData())
+			{
+				std::cout << "Data aligned!" << std::endl;
+			}
 			return;
 		}
 
-		CorrectPacketBacklog();
+		CorrectPacketBacklog(); // TODO: is backlog correction necessary now that we consume all available packets?
 
 		while (buffer->BufferCount() >= sizeof(Packet))
 		{
-			if (!TryProcessPacket()) return;
+			if (!TryProcessPacket())
+			{
+				isDataAligned = false;
+				attemptedPacketAlignments = 0;
+
+				std::cout << "Data misaligned! Attempting to realign..." << std::endl;
+				return;
+			}
+
+			//std::cout << currentPacket.Gyro.X << "\t" << currentPacket.Gyro.Y << "\t" << currentPacket.Gyro.Z << std::endl;
 
 			if (PacketReady) PacketReady(currentPacket);
 		}
-
-		auto t = system_clock::now();
-		auto us = duration_cast<microseconds>(t - previousTime).count();
-
-		auto elapsed = system_clock::now().time_since_epoch();
-		auto elapsedUs = duration_cast<microseconds>(elapsed).count();
-
-		previousTime = t;
-	}
-
-	void ResetLastReceivedDataTime()
-	{
-		lastReceivedDataTime = std::chrono::system_clock::now();
 	}
 
 	// Marks data as not aligned
 	void ResetDataAlignment()
 	{
 		isDataAligned = false;
-	}
-
-	bool DataTimeoutExceeded()
-	{
-		using namespace std::chrono;
-		static auto currentTime = system_clock::now();
-
-		currentTime = system_clock::now();
-
-		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedDataTime).count();
-		if (msElapsed < DataTimeoutThresholdMs) return false;
-
-		std::cout << "Have not received data for " << msElapsed << " ms" << std::endl;
-
-		return msElapsed >= DataTimeoutDisconnectThresholdMs;
 	}
 }

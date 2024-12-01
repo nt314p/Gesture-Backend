@@ -13,6 +13,21 @@ namespace BluetoothLE
 		return isConnected;
 	}
 
+	bool BLEDevice::DataTimeoutExceeded() const
+	{
+		using namespace std::chrono;
+		static auto currentTime = system_clock::now();
+
+		currentTime = system_clock::now();
+
+		auto msElapsed = duration_cast<milliseconds>(currentTime - lastReceivedDataTime).count();
+		if (msElapsed < DataTimeoutThresholdMs) return false;
+
+		std::cout << "Have not received data for " << msElapsed << " ms" << std::endl;
+
+		return msElapsed >= DataTimeoutDisconnectThresholdMs;
+	}
+
 	static void PrintPairingInfo(Bluetooth::BluetoothLEDevice^ bleDevice)
 	{
 		std::cout << "Is paired: " << bleDevice->DeviceInformation->Pairing->IsPaired << std::endl;
@@ -104,6 +119,8 @@ namespace BluetoothLE
 			buffer.WriteBuffer(reader->ReadByte());
 		}
 
+		lastReceivedDataTime = std::chrono::system_clock::now();
+
 		if (ReceivedData) ReceivedData();
 	}
 
@@ -128,8 +145,13 @@ namespace BluetoothLE
 	{
 		switch (sender->ConnectionStatus)
 		{
+			
 		case Bluetooth::BluetoothConnectionStatus::Connected:
 		{
+			// This triggers early in the connecting process
+			// The connection is not fully verified when it triggers
+			// (pairing may not be completed, access to characteristic not verified)
+			return;
 			isConnected = true;
 			if (Connected) Connected();
 			break;
@@ -207,6 +229,13 @@ namespace BluetoothLE
 		while (true) // TODO: insert delay somewhere
 		{
 			bleDevice = ConnectToDevice(address);
+
+			bleDevice->ConnectionStatusChanged +=
+				ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(
+					[this](Bluetooth::BluetoothLEDevice^ device, Platform::Object^ obj) {
+						this->OnConnectionChanged(device, obj);
+					});
+
 			bleDevice->DeviceInformation->Pairing->Custom->PairingRequested +=
 				ref new TypedEventHandler<DeviceInformationCustomPairing^, DevicePairingRequestedEventArgs^>(
 					[this](DeviceInformationCustomPairing^ pairing, DevicePairingRequestedEventArgs^ args) {
@@ -232,11 +261,8 @@ namespace BluetoothLE
 			Sleep(3000);
 		}
 
-		bleDevice->ConnectionStatusChanged +=
-			ref new TypedEventHandler<Bluetooth::BluetoothLEDevice^, Platform::Object^>(
-				[this](Bluetooth::BluetoothLEDevice^ device, Platform::Object^ obj) {
-					this->OnConnectionChanged(device, obj);
-				});
+		isConnected = true;
+		if (Connected) Connected();
 	}
 
 	void BLEDevice::AttemptConnection()
@@ -272,7 +298,5 @@ namespace BluetoothLE
 					BluetoothLEAdvertisementReceivedEventArgs^ args) {
 						this->OnAdvertisementReceived(watcher, args);
 				});
-
-		std::cout << "Bluetooth watcher initialized" << std::endl;
 	}
 }
